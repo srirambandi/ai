@@ -1,5 +1,5 @@
 """
-AI library - numpy, python and ai walk into a bar..
+AI library in python using numpy
 Written by Sri Ram Bandi (@_srirambandi_)
 
 BSD License
@@ -211,6 +211,9 @@ class ComputationalGraph:
         return out
 
     # layers operations
+    # the portion for conv2d and maxpool2d operation became little complicated to facilitate fast computation.
+    # For an easier logic code, see this commit which is very inefficient but easy to understand
+    # https://github.com/srirambandi/ai/commit/f886cbd616b3d808acaa7d6c702d2b8b93fe8d9e#diff-0ef108fef71dfdcd1cbaad80982c92ac
     def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
         if type(s) is not tuple:    # already handled in Conv2d class definition
@@ -811,7 +814,7 @@ class Model:
     def __init__(self):
         self.layers = []
 
-    def save(self, file=None):
+    def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
         layers = []
 
@@ -828,7 +831,7 @@ class Model:
 
         print('model saved in', file)
 
-    def load(self, file=None):
+    def load(self, file=None):  # model.load() - loads the state of net from a file
         print('loading model from', file)
         if file == None:
             file = str(self.__class__).strip('<>').split()[1].strip("\'").split('.')[1]+'.npy'
@@ -841,8 +844,8 @@ class Model:
 
         print('model loaded!')
 
-    def get_parameters(self):
+    def get_parameters(self):   # access parameters of the model with this func
         return self.layers
 
 
-#define operations, loss, optim, models, regularizations, asserts, batch, n-dimentional-inputs, utils, GPU support, tests
+# TODO: define regularizations, asserts, batch, utils, GPU support, examples

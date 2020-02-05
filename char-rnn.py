@@ -1,6 +1,7 @@
 import ai
 import numpy as np
 
+# @karpathy 's min-char-rnn input trained with rnn
 # data I/O
 data = open('input.txt', 'r').read() # should be simple plain text file
 chars = list(set(data))
