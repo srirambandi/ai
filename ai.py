@@ -213,38 +213,32 @@ class ComputationalGraph:
     # layers operations
     def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        if type(s) is not tuple:    # these both conditions are already handled in Conv2d class definition
-            s = (s, s)              # but adding for compatibility if user calls globally without using Conv2d class
+        if type(s) is not tuple:    # already handled in Conv2d class definition
+            s = (s, s)              # adding for compatibility direct calling without using Conv2d class
         if type(p) is not tuple:
             p = (p, p)
 
-        out = []
+        fi = K.shape[0]     # number of filters
+        ch = K.shape[1]     # number of input channels
+        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
+        i = x.shape[1:]     # input shape of any channel of the input feature map before padding
+        output_maps_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))) # output feature maps shape - (# of filters, o_i, o_j)
+        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)))   # padded input feature maps shape - (channels, new_i, new_j)
 
-        k = K.w[0, 0].shape     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
-        i = x.w[0].shape        # input shape of any channel of the input feature map before padding
-        output_map_shape = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)) # output feature map shape
-        pad_shape = tuple(map(lambda a, b: a + 2*b, i, p))  # padded input feature map shape
+        out = np.zeros(output_maps_shape)  # output feature maps
 
-        for kth in range(len(K.w)):  # kth-filter
+        pad_input = np.zeros(pad_shape)
+        # padded input - copying the actual input onto pad input centre
+        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1]] += x.w
+        pad_input = np.stack([pad_input for i in range(fi)])    # stack fi times to help fast computation
 
-            output_feat_map = np.zeros(output_map_shape)  # kth-output feature map
+        for r in range(out.shape[1]):        # convolving operation here
+            for c in range(out.shape[2]):    # traversing rous and columns of feature map
 
-            for cth in range(len(x.w)):
+                # multiplying traversed grid portions of padded input feature maps with kernel grids element-wise
+                # and summing the resulting matrix to produce elements of output maps
+                out[:, r, c] += np.sum(np.multiply(pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]], K.w), axis=(1, 2, 3))
 
-                input_feat_map = x.w[cth]   # cth-channel grid (eg., R/G/B)
-                pad_channel = np.zeros(pad_shape)
-                pad_channel[p[0]:pad_channel.shape[0]-p[0], p[1]:pad_channel.shape[1]-p[1]] += input_feat_map   # padded input channel
-
-                for r in range(output_feat_map.shape[0]):    # traversing rows of kth-output feature map
-                    for c in range(output_feat_map.shape[1]):    # traversing columns of kth-output feature map
-
-                        # multiplying traversed grid portions of cth-padded input feature maps with cth-kernel grids element-wise
-                        # and summing the resulting matrix to produce elements of k-th kernel
-                        output_feat_map[r][c] += np.sum(np.multiply(pad_channel[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]], K.w[kth, cth]))
-
-            out.append(output_feat_map)
-
-        out = np.stack(out)
         output_feature_maps = Parameter(out.shape, init_zeros=True)
         output_feature_maps.w = out    # the whole set of output feature maps, has same numeber of maps as filters in the kernel set
 
@@ -252,37 +246,33 @@ class ComputationalGraph:
             def backward():
                 # print('conv2d')
                 if K.eval_grad:
-                    for kth in range(len(output_feature_maps.dw)):
-                        for cth in range(len(x.w)):
 
-                            kdw = np.zeros(k)   # cth-channel kernel gradient in kth-kernel filter
-                            input_feat_map = x.w[cth]   # cth-channel grid (eg., R/G/B)
-                            pad_channel = np.zeros(pad_shape)
-                            pad_channel[p[0]:pad_channel.shape[0]-p[0], p[1]:pad_channel.shape[1]-p[1]] += input_feat_map
+                    for r in range(output_feature_maps.shape[1]):
+                        for c in range(output_feature_maps.shape[2]):
 
-                            map_grad = output_feature_maps.dw[kth]
-                            for r in range(map_grad.shape[0]):
-                                for c in range(map_grad.shape[1]):
-                                    # solving gradient for cth-channel kernel in kth-kernel filter (sketh on paper and think)
-                                    kdw += map_grad[r][c]*pad_channel[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
+                            # solving gradient for each kernel filter that caused the elements in r, c position of every output filter
+                            # sketch and think, with input stacked fi times to make computation fast
+                            _ = np.stack([np.full_like(np.zeros(K.shape[1:]), output_feature_maps.dw[i, r, c]) for i in range(fi)])
 
-                            # updating gradient of kernel-filter-set at kth-filter and cth-channel
-                            K.dw[kth, cth] += kdw
+                            # updating the kernel filter set gradient - there will be RxC such updates
+                            K.dw += _*pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
 
                 if x.eval_grad:
-                    for kth in range(len(output_feature_maps.dw)):
-                        for cth in range(len(K.w[kth])):
 
-                            pad_channel_grad = np.zeros(pad_shape)
-                            map_grad = output_feature_maps.dw[kth]
-                            for r in range(map_grad.shape[0]):
-                                for c in range(map_grad.shape[1]):
-                                    pad_channel_grad[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += map_grad[r][c]*K.w[kth, cth]
+                    pad_input_grad = np.zeros(pad_shape)
 
-                            # cutting the padded portion from the input-feature-map's cth-channel gradient
-                            # and updating the cth channel gradient of input feature map(non-padded)
-                            pad_channel_grad = pad_channel_grad[p[0]:pad_channel_grad.shape[0]-p[0], p[1]:pad_channel_grad.shape[1]-p[1]]
-                            x.dw[cth] += pad_channel_grad
+                    for r in range(output_feature_maps.shape[1]):
+                        for c in range(output_feature_maps.shape[2]):
+
+                            # solving gradient for input feature map that caused the elements in r, c position of every output filter
+                            # similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+                            _ = np.stack([np.full_like(np.zeros(K.shape[1:]), output_feature_maps.dw[i, r, c]) for i in range(fi)])
+                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += np.sum(_*K.w, axis=0)
+
+                    # cutting the padded portion from the input-feature-map's gradient
+                    # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+                    pad_input_grad = pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1]]
+                    x.dw += pad_input_grad
 
                 # return (K.dw, x.dw)
 
@@ -300,26 +290,23 @@ class ComputationalGraph:
 
         out = []
 
-        i = x.w[0].shape    # input shape of any channel of the input feature map before padding
-        pool_shape = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)) # shape after maxpool
-        pad_shape = tuple(map(lambda a, b: a + 2*b, i, p))  # padded conv output feature map shape
+        ch = x.shape[0]     # number of input channels(panes)
+        i = x.shape[1:]     # input shape of any channel of the input feature map before padding
+        pool_shape = (ch, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))) # shape after maxpool
+        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)))  # padded input shape
 
-        for feat_map in x.w:
+        out = np.zeros((pool_shape))
 
-            pool_map = np.zeros((pool_shape))
-            pad_map = np.zeros(pad_shape)
-            pad_map[p[0]:pad_map.shape[0]-p[0], p[1]:pad_map.shape[1]-p[1]] += feat_map # copying the input onto padded matrix
+        pad_input = np.zeros(pad_shape)
+        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1]] += x.w # copying the input onto padded matrix
 
-            for r in range(pool_map.shape[0]):
-                for c in range(pool_map.shape[1]):
+        for r in range(out.shape[1]):       # convolving operation here(kinda)
+            for c in range(out.shape[2]):   # traversing rous and columns of feature map
 
-                    # selecting max element in the current position where kernel
-                    # sits on feature map; the kernel moves in a convolution manner similar to conv2d
-                    pool_map[r][c] = np.max(pad_map[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]])
+                # selecting max element in the current position where kernel
+                # sits on feature map; the kernel moves in a convolution manner similar to conv2d
+                out[:, r, c] = np.max(pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]], axis=(1, 2))
 
-            out.append(pool_map)
-
-        out = np.stack(out)
         pool_maps = Parameter(out.shape, init_zeros=True)
         pool_maps.w = out
 
@@ -327,26 +314,29 @@ class ComputationalGraph:
             def backward():
                 # print('maxpool2d')
                 if x.eval_grad:
-                    x_grads = []
-                    for feat_map, pool_map_grad in zip(x.w, pool_maps.dw):
 
-                        pad_map = np.zeros(pad_shape)
-                        pad_map_grad = np.zeros(pad_shape)
-                        pad_map[p[0]:pad_map.shape[0]-p[0], p[1]:pad_map.shape[1]-p[1]] += feat_map
+                    pad_input_grad = np.zeros(pad_shape)    # padded input gradient
 
-                        for r in range(pool_map_grad.shape[0]):
-                            for c in range(pool_map_grad.shape[1]):
+                    for r in range(pool_maps.shape[1]):
+                        for c in range(pool_maps.shape[2]):
 
-                                mask = np.zeros(k)
-                                a = pad_map[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
-                                ind = np.unravel_index(np.argmax(a, axis=None), a.shape)
-                                mask[ind] = 1*pool_map_grad[r][c]   # mask with only maximum element receiving the gradient in current position
-                                pad_map_grad[r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += mask # copying mask onto gradient matrix
+                            # mask that captures location of max values in the cuboid volume of padded input panes
+                            # that caused elements in every respective pool map pane at (r, c) location
+                            mask = np.zeros((ch, *k))
+                            for count in range(ch):
+                                _ = pad_input[count, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
+                                ind = (count, *np.unravel_index(np.argmax(_, axis=None), _.shape))
+                                # mask updated for only maximum element receiving the gradient in current channel and position(r, c)
+                                mask[ind] = 1.0*pool_maps.dw[count, r, c]
 
-                        pad_map_grad = pad_map_grad[p[0]:pad_map_grad.shape[0]-p[0], p[1]:pad_map_grad.shape[1]-p[1]]
-                        x_grads.append(pad_map_grad)
+                            # copying mask onto gradient matrix, the volume that
+                            # caused the values in (:, r, c). RxC such updates
+                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += mask
 
-                    x.dw += np.stack(x_grads)
+                    # cutting the padded portion from the input gradient
+                    # and updating the gradient of actual input(non-padded) - unpadding and updating
+                    pad_input_grad = pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1]]
+                    x.dw += pad_input_grad
 
                 # return (x.dw)
 
