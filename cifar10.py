@@ -50,7 +50,7 @@ while loss > 1:
 
         for input, output in zip(inputs, outputs):
 
-            input = input.reshape(3, 32, 32)
+            input = input.reshape(3, 32, 32) / 255  # unnormalizing input pixels
             onehot = np.zeros((10, 1))
             onehot[output] = 1
 
