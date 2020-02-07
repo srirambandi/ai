@@ -39,7 +39,7 @@ optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 
 it = 0
 loss = np.inf
-while loss > 1:
+while loss > 0.1:
 
     for set in range(1, 7):
         dataset = file + str(set)
@@ -66,3 +66,5 @@ while loss > 1:
                 print('iter: {}, loss: {}'.format(it, loss))
 
             it += 1
+
+model.save()

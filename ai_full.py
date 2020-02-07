@@ -767,6 +767,7 @@ class Optimizer:
         elif self.optim_fn == 'Adagrad':
             return self.Adagrad()
         elif self.optim_fn == 'Adadelta':
+            self.eps = 1e-6
             return self.Adadelta()
 
     # Stochastic Gradient Descent optimization function
