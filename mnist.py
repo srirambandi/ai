@@ -1,4 +1,4 @@
-import ai
+import ai_full as ai
 import numpy as np
 
 def load_data(file):
@@ -10,9 +10,9 @@ test_file = 'mnist/test.npy'
 
 class mnist(ai.Model):
     def __init__(self, ):
-        self.conv1 = ai.Conv2d(1, 32, kernel_size=3, stride=1)
-        self.conv2 = ai.Conv2d(32, 64, kernel_size=3, stride=1)
-        self.fc1 = ai.Linear(9216, 128)
+        self.conv1 = ai.Conv2d(1, 8, kernel_size=3, stride=1)
+        self.conv2 = ai.Conv2d(8, 16, kernel_size=3, stride=1)
+        self.fc1 = ai.Linear(2304, 128)
         self.fc2 = ai.Linear(128, 10)
         self.layers = [self.conv1, self.conv2, self.fc1, self.fc2]
 
@@ -27,11 +27,12 @@ class mnist(ai.Model):
 
 model = mnist()
 L = ai.Loss(loss_fn='CrossEntropyLoss')
-optim = ai.Optimizer(model.layers, optim_fn='Adadelta', lr=1e-3)
+optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 
 
 it = 0
 loss = np.inf
+m = 2
 
 train_dict = load_data(train_file)
 inputs = train_dict.item()['data']
@@ -40,17 +41,20 @@ outputs = train_dict.item()['labels']
 del train_dict
 
 loss = np.inf
-while loss > 0.1:
+while loss > 0.05:
 
-    for input, output in zip(inputs, outputs):
+    # for batch in range(int(len(outputs) / m)):
+    for batch in range(1):
 
-        input = input.reshape(1, 28, 28) / 255
-        onehot = np.zeros((10, 1))
-        onehot[output] = 1
+        input = inputs[batch * m : (batch + 1) * m].reshape(1, 28, 28, m) / 255
+        output = outputs[batch * m : (batch + 1) * m]
+        onehot = np.zeros((10, m))
+        for _ in range(m):
+            onehot[output[_], _] = 1.0
 
         scores = model.forward(input)
 
-        loss = L.loss([scores], [onehot])[0].w[0][0]
+        loss = L.loss(scores, onehot).w[0][0]
         L.backward()
 
         optim.step()        # update parameters with optimization functions

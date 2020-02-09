@@ -72,6 +72,7 @@ class ComputationalGraph:
         return out
 
     def add(self, x, y):    # element wise addition
+        # bias should be passed in position of y
         shape = x.shape
         out = Parameter(shape, init_zeros=True)
         out.w = np.add(x.w, y.w)
@@ -82,7 +83,14 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.dw += out.dw
                 if y.eval_grad:
-                    y.dw += out.dw
+                    if y.shape != x.shape:
+                        axis = []
+                        for ax in range(len(x.shape)):
+                            if x.shape[ax] != y.shape[ax]:
+                                axis.append(ax)
+                        y.dw += np.sum(out.dw, axis = tuple(axis)).reshape(y.shape)   # bias adding to batched vector
+                    else:
+                        y.dw += out.dw  # matrix/vector addition
 
                 # return (x.dw, y.dw)
 
@@ -151,7 +159,26 @@ class ComputationalGraph:
 
         return out
 
-    def scalar_mul(self, x, y):
+    def divide(self, x, y):   # element wise vector division
+        shape = x.shape
+        out = Parameter(shape, init_zeros=True)
+        out.w = np.divide(x.w, y.w)
+
+        if self.grad_mode:
+            def backward():
+                # print('divide')
+                if x.eval_grad:
+                    x.dw += np.multiply(out.dw, np.divide(1.0, y.w))
+                if y.eval_grad:
+                    y.dw += np.multiply(out.dw, np.divide(1.0, x.w))
+
+                # return (x.dw, y.dw)
+
+            self.backprop.append(lambda: backward())
+
+        return out
+
+    def scalar_mul(self, x, y): # not used yet
         # y is the scalar
         if x.shape == (1, 1):
             _ = y
@@ -185,7 +212,7 @@ class ComputationalGraph:
             def backward():
                 # print('sum')
                 if h.eval_grad:
-                    h.dw += np.full_like(h.dw, out.dw[0][0])
+                    h.dw += np.multiply(np.ones(h.shape), out.dw)
 
                 # return h.dw
 
@@ -222,25 +249,28 @@ class ComputationalGraph:
             p = (p, p)
 
         fi = K.shape[0]     # number of filters
-        ch = K.shape[1]     # number of input channels
+        ch = x.shape[0]     # number of input channels
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
-        i = x.shape[1:]     # input shape of any channel of the input feature map before padding
-        output_maps_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))) # output feature maps shape - (# of filters, o_i, o_j)
-        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)))   # padded input feature maps shape - (channels, new_i, new_j)
+        i = x.shape[1:-1]     # input shape of any channel of the input feature map before padding
+        batch = x.shape[-1]     # batch size
+        output_maps_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
+        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
 
         out = np.zeros(output_maps_shape)  # output feature maps
 
         pad_input = np.zeros(pad_shape)
         # padded input - copying the actual input onto pad input centre
-        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1]] += x.w
-        pad_input = np.stack([pad_input for i in range(fi)])    # stack fi times to help fast computation
+        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :] += x.w
+        pad_input = pad_input.reshape(1, *pad_shape)
+        # pad_input = np.stack([pad_input for i in range(fi)])    # stack fi times to help fast computation
+        # filter_set = np.stack([K.w for i in range(batch)], axis = -1)
 
         for r in range(out.shape[1]):        # convolving operation here
             for c in range(out.shape[2]):    # traversing rous and columns of feature map
 
                 # multiplying traversed grid portions of padded input feature maps with kernel grids element-wise
                 # and summing the resulting matrix to produce elements of output maps
-                out[:, r, c] += np.sum(np.multiply(pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]], K.w), axis=(1, 2, 3))
+                out[:, r, c, :] += np.sum(np.multiply(pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], K.w.reshape(*K.shape, 1)), axis=(1, 2, 3))
 
         output_feature_maps = Parameter(out.shape, init_zeros=True)
         output_feature_maps.w = out    # the whole set of output feature maps, has same numeber of maps as filters in the kernel set
@@ -255,10 +285,11 @@ class ComputationalGraph:
 
                             # solving gradient for each kernel filter that caused the elements in r, c position of every output filter
                             # sketch and think, with input stacked fi times to make computation fast
-                            _ = np.stack([np.full_like(np.zeros(K.shape[1:]), output_feature_maps.dw[i, r, c]) for i in range(fi)])
+                            # _ = np.stack([np.stack([np.full(K.shape[1:], output_feature_maps.dw[i, r, c, j]) for i in range(fi)]) for j in range(batch)], axis = -1)
 
+                            _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
-                            K.dw += _*pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
+                            K.dw += np.sum(np.multiply(_, pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
                 if x.eval_grad:
 
@@ -269,13 +300,14 @@ class ComputationalGraph:
 
                             # solving gradient for input feature map that caused the elements in r, c position of every output filter
                             # similar to kernel gradient method, but the matrix collapses along filters dimention using sum
-                            _ = np.stack([np.full_like(np.zeros(K.shape[1:]), output_feature_maps.dw[i, r, c]) for i in range(fi)])
-                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += np.sum(_*K.w, axis=0)
+                            # _ = np.stack([np.stack([np.full(K.shape[1:], output_feature_maps.dw[i, r, c, j]) for i in range(fi)]) for j in range(batch)], axis = -1)
+
+                            _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.w.reshape(*K.shape, 1)), axis=0)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-                    pad_input_grad = pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1]]
-                    x.dw += pad_input_grad
+                    x.dw += pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1], :]
 
                 # return (K.dw, x.dw)
 
@@ -293,22 +325,26 @@ class ComputationalGraph:
 
         out = []
 
-        ch = x.shape[0]     # number of input channels(panes)
-        i = x.shape[1:]     # input shape of any channel of the input feature map before padding
-        pool_shape = (ch, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))) # shape after maxpool
-        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)))  # padded input shape
+        fi = x.shape[0]     # number of input filters(panes)
+        i = x.shape[1:-1]     # input shape of any channel of the input feature map before padding
+        batch = x.shape[-1]
+        pool_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
+        pad_shape = (fi, *tuple(map(lambda a, b: a + 2*b, i, p)), batch)  # padded input shape
 
         out = np.zeros((pool_shape))
 
         pad_input = np.zeros(pad_shape)
-        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1]] += x.w # copying the input onto padded matrix
+        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :] += x.w # copying the input onto padded matrix
 
         for r in range(out.shape[1]):       # convolving operation here(kinda)
             for c in range(out.shape[2]):   # traversing rous and columns of feature map
 
                 # selecting max element in the current position where kernel
                 # sits on feature map; the kernel moves in a convolution manner similar to conv2d
-                out[:, r, c] = np.max(pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]], axis=(1, 2))
+                _ = pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]
+                out[:, r, c, :] = np.max(_, axis=(1, 2))
+                _ -= out[:, r, c, :].reshape(fi, 1, 1, batch)
+                _ = np.where(_ < 0, 0, 1.0)
 
         pool_maps = Parameter(out.shape, init_zeros=True)
         pool_maps.w = out
@@ -318,28 +354,29 @@ class ComputationalGraph:
                 # print('maxpool2d')
                 if x.eval_grad:
 
-                    pad_input_grad = np.zeros(pad_shape)    # padded input gradient
+                    # pad_input_grad = np.zeros(pad_shape)    # padded input gradient
 
                     for r in range(pool_maps.shape[1]):
                         for c in range(pool_maps.shape[2]):
 
                             # mask that captures location of max values in the cuboid volume of padded input panes
                             # that caused elements in every respective pool map pane at (r, c) location
-                            mask = np.zeros((ch, *k))
-                            for count in range(ch):
-                                _ = pad_input[count, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
-                                ind = (count, *np.unravel_index(np.argmax(_, axis=None), _.shape))
-                                # mask updated for only maximum element receiving the gradient in current channel and position(r, c)
-                                mask[ind] = 1.0*pool_maps.dw[count, r, c]
+                            # mask = np.zeros((ch, *k, batch))
+                            # for count in range(ch):
+                            #     _ = pad_input[count, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]]
+                            #     ind = (count, *np.unravel_index(np.argmax(_, axis=None), _.shape))
+                            #     # mask updated for only maximum element receiving the gradient in current channel and position(r, c)
+                            #     mask[ind] = 1.0*pool_maps.dw[count, r, c]
+
+                            pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= pool_maps.dw[:, r, c, :].reshape(fi, 1, 1, batch)
 
                             # copying mask onto gradient matrix, the volume that
                             # caused the values in (:, r, c). RxC such updates
-                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += mask
+                            # pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]
 
                     # cutting the padded portion from the input gradient
                     # and updating the gradient of actual input(non-padded) - unpadding and updating
-                    pad_input_grad = pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1]]
-                    x.dw += pad_input_grad
+                    x.dw += pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :]
 
                 # return (x.dw)
 
@@ -401,7 +438,7 @@ class ComputationalGraph:
             def backward():
                 # print('sigmoid')
                 if z.eval_grad:
-                    z.dw += np.multiply(np.multiply(out.w, 1 - out.w), out.dw)
+                    z.dw += np.multiply(np.multiply(out.w, 1.0 - out.w), out.dw)
 
                 # return z.dw
 
@@ -412,13 +449,19 @@ class ComputationalGraph:
     def softmax(self, z):   # calculates probs for the unnormalized log probabilities of previous layer
         shape = z.shape
         out = Parameter(shape, init_zeros=True)
-        out.w = np.exp(z.w - np.max(z.w))/np.sum(np.exp(z.w - np.max(z.w)))
+        out.w = np.exp(z.w - np.max(z.w)) / np.sum(np.exp(z.w - np.max(z.w)), axis=0).reshape(1, -1)
 
         if self.grad_mode:
             def backward():
                 # print('softmax')
                 if z.eval_grad:
-                    z.dw += np.dot(np.diag(out.w[:,0]) - np.dot(out.w, out.w.T), out.dw)
+                    zl = []
+                    for i in range(z.shape[1]):
+                        _ = out.w[:, i].reshape(-1, 1)
+                        zl.append(np.dot(np.diag(_[:, 0]) - np.dot(_[:, 0], _[:, 0].T), out.dw[:, i].reshape(-1, 1)))
+
+                    zl = np.concatenate(zl, axis = -1)
+                    z.dw += zl
 
                 # return z.dw
 
@@ -482,10 +525,11 @@ class ComputationalGraph:
 
     def reshape(self, x, new_shape=None):
         old_shape = x.shape
+        batch_size = old_shape[-1]
         if new_shape == None:
-            new_shape = x.w.reshape(-1, 1).shape
+            new_shape = x.w.reshape(-1, batch_size).shape
         out = Parameter(new_shape, init_zeros=True)
-        out.w = x.w.reshape(-1, 1)
+        out.w = x.w.reshape(new_shape)
 
         if self.grad_mode:
             def backward():
@@ -526,7 +570,7 @@ class Linear:
             x = Parameter(shape, eval_grad=True, init_zeros=True)
             x.w = _
 
-        if len(x.shape) > 2 or x.shape[1] != 1:
+        if len(x.shape) > 2:
             x = G.reshape(x)
 
         out = G.add(G.dot(self.W, x), self.b)   # y = Wx + b
@@ -555,7 +599,7 @@ class Conv2d:
 
     def init_params(self):
         self.K = Parameter((self.output_channels, *self.filter_size))
-        self.b = Parameter((self.output_channels, 1, 1), init_zeros=True)
+        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True)
         self.parameters = [self.K, self.b]
 
     def forward(self, x):
@@ -565,7 +609,7 @@ class Conv2d:
             x = Parameter(shape, eval_grad=False, init_zeros=True)
             x.w = _
 
-        out = G.scalar_add(G.conv2d(x, self.K, self.stride, self.padding), self.b)     # convoulution operation and adding bias
+        out = G.add(G.conv2d(x, self.K, self.stride, self.padding), self.b)     # convoulution operation and adding bias
 
         return out
 
@@ -666,45 +710,56 @@ class Loss:
 
     def MSELoss(self, y_out, y_true):
         # loss as a list for the case when the graph has many outputs, like in an LSTM roll-out with outputs at every tick
-        loss = []
+        # loss = []
 
-        for y_o, y_t in zip(y_out, y_true):
-            if type(y_t) is not Parameter:
-                shape = y_t.shape
-                _ = y_t
-                y_t = Parameter(shape, eval_grad=False, init_zeros=True)
-                y_t.w = _
+        # for y_o, y_t in zip(y_out, y_true):
+        if type(y_true) is not Parameter:
+            shape = y_true.shape
+            _ = y_true
+            y_true = Parameter(shape, eval_grad=False, init_zeros=True)
+            y_true.w = _
 
-            # L = (y_o - y_t)^2
-            l = self.graph.dot(self.graph.T(self.graph.subtract(y_o, y_t)), self.graph.subtract(y_o, y_t))
+        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        m.w[0, 0] = float(y_true.shape[-1])
 
-            l.dw[0][0] = 1.0  # dl/dl = 1.0
+        # L = (y_out - y_true)^2
+        # l = self.graph.dot(self.graph.T(self.graph.subtract(y_o, y_t)), self.graph.subtract(y_o, y_t))
+        l = self.graph.sum(self.graph.multiply(self.graph.subtract(y_out, y_true), self.graph.subtract(y_out, y_true)))
+        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+        l = self.graph.divide(l, m)
 
-            loss.append(l)
+        l.dw[0, 0] = 1.0  # dl/dl = 1.0
 
-        return loss
+        # loss.append(l)
+
+        return l
 
     def CrossEntropyLoss(self, y_out, y_true):
-        loss = []
+        # loss = []
 
-        for y_o, y_t in zip(y_out, y_true):
-            if type(y_t) is not Parameter:
-                shape = y_t.shape
-                _ = y_t
-                y_t = Parameter(shape, eval_grad=False, init_zeros=True)
-                y_t.w = _
+        # for y_o, y_t in zip(y_out, y_true):
+        if type(y_true) is not Parameter:
+            shape = y_true.shape
+            _ = y_true
+            y_true = Parameter(shape, eval_grad=False, init_zeros=True)
+            y_true.w = _
 
-            neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
-            neg_one.w[0][0] = -1.0  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
+        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        m.w[0, 0] = float(y_true.shape[-1])
 
-            # L = -Summation(y_t*log(y_o))
-            l = self.graph.scalar_mul(self.graph.sum(self.graph.multiply(y_t, self.graph.log(y_o))), neg_one)
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one.w.fill(-1.0)  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
 
-            l.dw[0][0] = 1.0  # dl/dl = 1.0
+        # L = -Summation(y_true*log(y_out))
+        l = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_out))), neg_one)
+        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+        l = self.graph.divide(l, m)
 
-            loss.append(l)
+        l.dw[0, 0] = 1.0  # dl/dl = 1.0
 
-        return loss
+        # loss.append(l)
+
+        return l
 
     #define loss functions
 
