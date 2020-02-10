@@ -455,13 +455,7 @@ class ComputationalGraph:
             def backward():
                 # print('softmax')
                 if z.eval_grad:
-                    zl = []
-                    for i in range(z.shape[1]):
-                        _ = out.w[:, i].reshape(-1, 1)
-                        zl.append(np.dot(np.diag(_[:, 0]) - np.dot(_[:, 0], _[:, 0].T), out.dw[:, i].reshape(-1, 1)))
-
-                    zl = np.concatenate(zl, axis = -1)
-                    z.dw += zl
+                    z.dw += out.w - np.where(out.dw == 0, 0, 1.0)
 
                 # return z.dw
 
@@ -843,7 +837,7 @@ class Optimizer:
                     self.m[l][p] = delta
 
                     # Update parameters with momentum SGD
-                    self.model[l].parameters[p] += delta
+                    self.model[l].parameters[p].w += delta
 
                 else:
                     # Update parameters with vanilla SGD
@@ -913,7 +907,7 @@ class Optimizer:
                 self.v[l][p] = self.ro * self.v[l][p] + (1 - self.ro) * delta * delta
 
                 # Apply Update:
-                self.model[l].parameters[p].dw += delta
+                self.model[l].parameters[p].w += delta
 
     #define optimizers
 

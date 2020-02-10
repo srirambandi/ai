@@ -8,6 +8,8 @@ def load_data(file):
 train_file = 'mnist/train.npy'
 test_file = 'mnist/test.npy'
 
+bag = []
+
 class mnist(ai.Model):
     def __init__(self, ):
         self.conv1 = ai.Conv2d(1, 8, kernel_size=3, stride=1)
@@ -21,16 +23,19 @@ class mnist(ai.Model):
         o2 = ai.G.relu(self.conv2.forward(o1))
         o3 = ai.G.dropout(ai.G.maxpool2d(o2), p=0.75)
         o4 = ai.G.dropout(ai.G.relu(self.fc1.forward(o3)), p=0.5)
-        o5 = ai.G.softmax(self.fc2.forward(o4))
+        o5 = self.fc2.forward(o4)
+        o6 = ai.G.softmax(o5)
 
-        return o5
+        bag.append(o5)
+
+        return o6
 
 model = mnist()
 L = ai.Loss(loss_fn='CrossEntropyLoss')
 optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 
 
-it = 0
+it, epoch = 0, 0
 loss = np.inf
 m = 2
 
@@ -41,10 +46,11 @@ outputs = train_dict.item()['labels']
 del train_dict
 
 loss = np.inf
-while loss > 0.05:
-
-    # for batch in range(int(len(outputs) / m)):
-    for batch in range(1):
+while loss > 0.1:
+    epoch += 1
+    it = 0
+    for batch in range(int(len(outputs) / m)):
+    # for batch in range(1):
 
         input = inputs[batch * m : (batch + 1) * m].reshape(1, 28, 28, m) / 255
         output = outputs[batch * m : (batch + 1) * m]
@@ -60,8 +66,8 @@ while loss > 0.05:
         optim.step()        # update parameters with optimization functions
         optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
-        if it%1 == 0:
-            print('iter: {}, loss: {}'.format(it, loss))
+        if it%10 == 0:
+            print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss))
 
         it += 1
 

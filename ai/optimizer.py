@@ -82,7 +82,7 @@ class Optimizer:
                     self.m[l][p] = delta
 
                     # Update parameters with momentum SGD
-                    self.model[l].parameters[p] += delta
+                    self.model[l].parameters[p].w += delta
 
                 else:
                     # Update parameters with vanilla SGD
@@ -152,6 +152,6 @@ class Optimizer:
                 self.v[l][p] = self.ro * self.v[l][p] + (1 - self.ro) * delta * delta
 
                 # Apply Update:
-                self.model[l].parameters[p].dw += delta
+                self.model[l].parameters[p].w += delta
 
     #define optimizers
