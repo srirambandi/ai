@@ -32,12 +32,12 @@ class mnist(ai.Model):
 
 model = mnist()
 L = ai.Loss(loss_fn='CrossEntropyLoss')
-optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
+optim = ai.Optimizer(model.layers, optim_fn='Adadelta', lr=1e-3)
 
 
 it, epoch = 0, 0
 loss = np.inf
-m = 2
+m = 8
 
 train_dict = load_data(train_file)
 inputs = train_dict.item()['data']
