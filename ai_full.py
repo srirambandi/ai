@@ -255,8 +255,8 @@ class ComputationalGraph:
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
-        output_maps_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
-        pad_shape = (ch, *tuple(map(lambda a, b: a + 2*b, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
+        output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
+        pad_shape = (ch, *(map(lambda a, b: a + 2*b, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
 
         out = np.zeros(output_maps_shape)  # output feature maps
 
@@ -333,8 +333,8 @@ class ComputationalGraph:
         fi = x.shape[0]     # number of input filters(panes)
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1]
-        pool_shape = (fi, *tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
-        pad_shape = (fi, *tuple(map(lambda a, b: a + 2*b, i, p)), batch)  # padded input shape
+        pool_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
+        pad_shape = (fi, *(map(lambda a, b: a + 2*b, i, p)), batch)  # padded input shape
 
         out = np.zeros((pool_shape))
 
@@ -694,6 +694,8 @@ class Loss:
             return self.MSELoss(y_out, y_true)
         elif self.loss_fn == 'CrossEntropyLoss':
             return self.CrossEntropyLoss(y_out, y_true)
+        elif self.loss_fn == 'TestLoss':
+            return self.TestLoss(y_out)
         else:
           print('No such loss function')
           import sys
@@ -744,6 +746,19 @@ class Loss:
         l = self.graph.divide(l, m)
 
         l.dw[0, 0] = 1.0  # dl/dl = 1.0
+
+        return l
+
+    def TestLoss(self, y_out):
+
+        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        m.w[0, 0] = float(y_out.shape[-1])
+
+        # a test loss score function that measures the sum of each output vector as the loss of that sample
+        l = self.graph.sum(y_out)
+        l = self.graph.divide(l, m)
+
+        l.dw[0, 0] = 1.0
 
         return l
 
