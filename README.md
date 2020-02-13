@@ -10,5 +10,10 @@ This library develops:
   - Loss - Mean Square, Cross Entropy loss functions, also has backward call function
   - Optimizers - basic SGD, Adam, Adagrad optimizer functions
   - some examples using this library
-  
+
 I will keep updating the library with more explanations, documentation and a similar library in my favourite language c++ soon!
+
+# Goal
+I want to be able to implement every model in the below Deep Learning Toolkit picture [source tweet](https://twitter.com/OriolVinyalsML/status/1212422497339105280?s=20)
+
+![DL Toolkit](/assets/dl_toolbox.jpeg)
