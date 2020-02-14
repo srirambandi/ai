@@ -260,10 +260,10 @@ class ComputationalGraph:
 
         out = np.zeros(output_maps_shape)  # output feature maps
 
-        pad_input = np.zeros(pad_shape)
+        pad_x = np.zeros(pad_shape)
         # padded input - copying the actual input onto pad input centre
-        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :] += x.w
-        pad_input = pad_input.reshape(1, *pad_shape)
+        pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.w
+        pad_x = pad_x.reshape(1, *pad_shape)
 
         # convolution operation is commutative because of this flipping
         # this step and consequently flipping in backward op are not essential for network
@@ -274,7 +274,7 @@ class ComputationalGraph:
 
                 # multiplying traversed grid portions of padded input feature maps with kernel grids element-wise
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
-                out[:, r, c, :] += np.sum(np.multiply(pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K.reshape(*K.shape, 1)), axis=(1, 2, 3))
+                out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K.reshape(*K.shape, 1)), axis=(1, 2, 3))
 
         output_feature_maps = Parameter(out.shape, init_zeros=True)
         output_feature_maps.w = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
@@ -293,13 +293,13 @@ class ComputationalGraph:
 
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
-                            flippe_K_grad += np.sum(np.multiply(_, pad_input[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
+                            flippe_K_grad += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
                     K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
 
                 if x.eval_grad:
 
-                    pad_input_grad = np.zeros(pad_shape)
+                    pad_x_grad = np.zeros(pad_shape)
 
                     for r in range(output_feature_maps.shape[1]):
                         for c in range(output_feature_maps.shape[2]):
@@ -308,11 +308,11 @@ class ComputationalGraph:
                             # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
 
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
-                            pad_input_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K.reshape(*K.shape, 1)), axis=0)
+                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K.reshape(*K.shape, 1)), axis=0)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-                    x.dw += pad_input_grad[:, p[0]:pad_input_grad.shape[1]-p[0], p[1]:pad_input_grad.shape[2]-p[1], :]
+                    x.dw += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], p[1]:pad_x_grad.shape[2]-p[1], :]
 
                 # return (K.dw, x.dw)
 
@@ -338,23 +338,29 @@ class ComputationalGraph:
 
         out = np.zeros((pool_shape))
 
-        pad_input = np.zeros(pad_shape)
-        pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :] += x.w # copying the input onto padded matrix
+        pad_x = np.zeros(pad_shape)
+        pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.w # copying the input onto padded matrix
 
         for r in range(out.shape[1]):       # convolving operation here(kinda)
             for c in range(out.shape[2]):   # traversing rous and columns of feature map
 
                 # Selecting max element in the current position where kernel sits on feature map
                 # The kernel moves in a convolution manner similar to conv2d
-                _ = pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]
+                _ = pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]
                 out[:, r, c, :] = np.max(_, axis=(1, 2))
 
-                if self.grad_mode:
+                if self.grad_mode:      # seems inefficient; will improve this whole maxpool op later
 
                     # Also storing value 1 at locations in the input that caused the output values(max locations);
                     # this makes life easy during backprop
+                    # if multiple 0s occur and max is 0 then it shouldn't count. weeding out such cases by assigning
+                    # NaN and later zeroing out their gradient locations too; this was a bug which is fixed now :)
+                    out[:, r, c, :][out[:, r, c, :] == 0] = np.nan
                     _ -= out[:, r, c, :].reshape(fi, 1, 1, batch)
-                    _ = np.where(_ < 0, 0, 1.0)
+                    _[np.isnan(_)] = -1     # removing all zeros locations
+                    # can't use '_' for the below assignment, so using the entire notation :(
+                    pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
+                    out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
         pool_maps = Parameter(out.shape, init_zeros=True)
         pool_maps.w = out
@@ -369,11 +375,11 @@ class ComputationalGraph:
 
                             # multiplying each 'mask' like volume(single 1 in the volume along all batches) with the gradient
                             # at region whose value was by the mask region's input caused
-                            pad_input[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= pool_maps.dw[:, r, c, :].reshape(fi, 1, 1, batch)
+                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= pool_maps.dw[:, r, c, :].reshape(fi, 1, 1, batch)
 
                     # cutting the padded portion from the input gradient
                     # and updating the gradient of actual input(non-padded) - unpadding and updating
-                    x.dw += pad_input[:, p[0]:pad_input.shape[1]-p[0], p[1]:pad_input.shape[2]-p[1], :]
+                    x.dw += pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :]
 
                 # return (x.dw)
 

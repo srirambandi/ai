@@ -2,7 +2,7 @@ import ai_full as ai
 import numpy as np
 
 # I/O preparation
-X = np.stack([np.zeros((3, 6, 6,)), np.random.randint(0, 6, (3, 6, 6))], axis = -1)
+X = np.stack([np.zeros((3, 6, 6)), np.random.randint(-5, 6, (3, 6, 6))], axis = -1)
 
 class test(ai.Model):
     def __init__(self, ):
@@ -38,20 +38,20 @@ while it < 1:
     L.backward()
 
     # testing the library here....
-    print(X.reshape(3, 2, 6, 6))
-    print('Conv2d kernel\n', model.conv1.K.w, '\n')
+    print([X[...,i] for i in range(X.shape[-1])])
+    print('Conv2d kernel\n', [model.conv1.K.w[i,...] for i in range(model.conv1.K.w.shape[0])],'\n')
     print('Conv2d bias\n', model.conv1.b.w, '\n')
-    print('Conv2d ouput\n', res[0].w, '\n gradient\n', res[0].dw, '\n\n')
+    print('Conv2d ouput\n', [res[0].w[...,i] for i in range(res[0].w.shape[-1])], '\n gradient\n', [res[0].dw[...,i] for i in range(res[0].dw.shape[-1])], '\n\n')
 
-    print('ReLU output\n', res[1].w, '\n gradient\n', res[1].dw, '\n\n')
+    print('ReLU output\n', [res[1].w[...,i] for i in range(res[1].w.shape[-1])], '\n gradient\n', [res[1].dw[...,i] for i in range(res[1].dw.shape[-1])], '\n\n')
 
-    print('MaxPool2d output\n', res[2].w, '\n gradient\n', res[2].dw, '\n\n')
+    print('MaxPool2d output\n', [res[2].w[...,i] for i in range(res[2].w.shape[-1])], '\n gradient\n', [res[2].dw[...,i] for i in range(res[2].dw.shape[-1])], '\n\n')
 
-    print('Dropout output\n', res[3].w, '\n gradient\n', res[3].dw, '\n\n')
+    print('Dropout output\n', [res[3].w[...,i] for i in range(res[3].w.shape[-1])], '\n gradient\n', [res[3].dw[...,i] for i in range(res[3].dw.shape[-1])], '\n\n')
 
     # print('Linear weight\n', model. fc1.W.w, '\n')
     # print('Linear bias\n', model.fc1.b.w, '\n')
-    print('Linear layer output\n', res[4].w, '\n gradient\n', res[4].dw, '\n\n')
+    print('Linear layer output\n', [res[4].w[...,i] for i in range(res[4].w.shape[-1])], '\n gradient\n', [res[4].dw[...,i] for i in range(res[4].dw.shape[-1])], '\n\n')
 
     # print('Softmax output', res[5].w, res[5].dw, '\n\n')
 
