@@ -57,7 +57,8 @@ def evaluate():
 
     for batch in range(int(len(outputs) / m)):
 
-        input = inputs[batch * test_m : (batch + 1) * test_m].reshape(3, 32, 32, test_m) / 255
+        input = inputs[batch * test_m : (batch + 1) * test_m].reshape(test_m, 3, 32, 32) / 255
+        input =  np.stack([_ for _ in input], axis = -1)
         output = np.array(outputs[batch * test_m : (batch + 1) * test_m])
 
         scores = model.forward(input)
@@ -87,7 +88,8 @@ while loss > 0.1:
 
         for batch in range(int(len(outputs) / m)):
 
-            input = inputs[batch * m : (batch + 1) * m].reshape(3, 32, 32, m) / 255
+            input = inputs[batch * m : (batch + 1) * m].reshape(m, 3, 32, 32) / 255
+            input =  np.stack([_ for _ in input], axis = -1)
             output = outputs[batch * m : (batch + 1) * m]
             onehot = np.zeros((10, m))
             for _ in range(m):

@@ -2,7 +2,7 @@ import ai_full as ai
 import numpy as np
 
 # I/O preparation
-X = np.stack([np.zeros((3, 6, 6)), np.random.randint(-5, 6, (3, 6, 6))], axis = -1)
+X = np.stack([np.zeros((3, 6, 6)), np.random.randint(-5, 6, (3, 6, 6))])
 
 class test(ai.Model):
     def __init__(self, ):
@@ -30,6 +30,7 @@ loss = np.inf
 m = 8
 while it < 1:
 
+    X = np.stack([_ for _ in X], axis = -1)
     res = model.forward(X)
 
     loss = L.loss(res[-1], None).w[0][0]
