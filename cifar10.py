@@ -1,4 +1,4 @@
-import ai
+import ai_full as ai
 import numpy as np
 
 
@@ -37,33 +37,39 @@ L = ai.Loss(loss_fn='CrossEntropyLoss')
 optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 
 
-it = 0
+it, epoch = 0, 0
 loss = np.inf
+m = 8
 while loss > 0.1:
+    epoch += 1
+    it = 0
+    for set in range(1, 6):
+        print('Set #{} started.'.format(set))
 
-    for set in range(1, 7):
         dataset = file + str(set)
         dict = unpickle(dataset)
 
         inputs = dict[b'data']
         outputs = dict[b'labels']
 
-        for input, output in zip(inputs, outputs):
+        for batch in range(int(len(outputs) / m)):
 
-            input = input.reshape(3, 32, 32) / 255  # unnormalizing input pixels
-            onehot = np.zeros((10, 1))
-            onehot[output] = 1
+            input = inputs[batch * m : (batch + 1) * m].reshape(3, 32, 32, m) / 255
+            output = outputs[batch * m : (batch + 1) * m]
+            onehot = np.zeros((10, m))
+            for _ in range(m):
+                onehot[output[_], _] = 1.0
 
             scores = model.forward(input)
 
-            loss = L.loss([scores], [onehot])[0].w[0][0]
+            loss = L.loss(scores, onehot).w[0][0]
             L.backward()
 
             optim.step()        # update parameters with optimization functions
             optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
             if it%1 == 0:
-                print('iter: {}, loss: {}'.format(it, loss))
+                print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss))
 
             it += 1
 

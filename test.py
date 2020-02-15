@@ -28,8 +28,6 @@ optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 it, epoch = 0, 0
 loss = np.inf
 m = 8
-
-loss = np.inf
 while it < 1:
 
     res = model.forward(X)

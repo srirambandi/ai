@@ -35,17 +35,15 @@ L = ai.Loss(loss_fn='CrossEntropyLoss')
 optim = ai.Optimizer(model.layers, optim_fn='Adadelta', lr=1e-3)
 
 
-it, epoch = 0, 0
-loss = np.inf
-m = 8
-
 train_dict = load_data(train_file)
 inputs = train_dict.item()['data']
 outputs = train_dict.item()['labels']
 
 del train_dict
 
+it, epoch = 0, 0
 loss = np.inf
+m = 8
 while loss > 0.1:
     epoch += 1
     it = 0
