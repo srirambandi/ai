@@ -569,7 +569,7 @@ class Linear:
             x.w = _
 
         if len(x.shape) > 2:
-            x = G.reshape(x)
+            x = G.reshape(x)    # flatten the input
 
         out = G.add(G.dot(self.W, x), self.b)   # y = Wx + b
 

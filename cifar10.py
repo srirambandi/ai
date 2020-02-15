@@ -40,6 +40,39 @@ optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
 it, epoch = 0, 0
 loss = np.inf
 m = 8
+
+
+def evaluate():
+    ai.G.grad_mode = False
+
+    file = '/content/drive/My Drive/Colab Notebooks/cifar10/test_batch'
+    dict = unpickle(file)
+
+    inputs = dict[b'data']
+    outputs = dict[b'labels']
+
+    correct, total = 0, 0
+
+    test_m = m
+
+    for batch in range(int(len(outputs) / m)):
+
+        input = inputs[batch * test_m : (batch + 1) * test_m].reshape(3, 32, 32, test_m) / 255
+        output = np.array(outputs[batch * test_m : (batch + 1) * test_m])
+
+        scores = model.forward(input)
+        preds = np.argmax(scores.w, axis=0)
+
+        correct += np.sum(np.equal(output, preds))
+        total += test_m
+
+    accuracy = float(correct / total)
+
+    ai.G.grad_mode = True
+
+    return accuracy
+
+
 while loss > 0.1:
     epoch += 1
     it = 0
@@ -72,5 +105,8 @@ while loss > 0.1:
                 print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss))
 
             it += 1
+
+    print('\n\n', 'Epoch {} completed. Accuracy {}'.format(epoch, evaluate()))
+
 
 model.save()
