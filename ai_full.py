@@ -11,19 +11,26 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), eval_grad=True, init_zeros=False, mu = 0.0, std = 0.01):
+    def __init__(self, shape=(0, 0), eval_grad=True, init_zeros=False, init_ones=False, mu = 0.0, std = 0.01):
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/scalar
         self.shape = shape
         self.init_zeros = init_zeros
-        self.w = np.zeros(shape)
-        self.dw = np.zeros(shape)
+        self.init_ones = init_ones
         self.mu = mu    # mean and variance of the gaussian
         self.std = std  # distribution to initialize the parameter
         self.init_params()
 
     def init_params(self):
-        if not self.init_zeros:
+
+        if self.init_zeros:
+            self.w = np.zeros(self.shape)
+        elif self.init_ones:
+            self.w = np.ones(self.shape)
+        else:
             self.w = self.std*np.random.randn(*self.shape) + self.mu
+
+        self.dw = np.zeros(self.shape)
+
         return self.w
 
     # transpose
@@ -71,8 +78,7 @@ class ComputationalGraph:
 
         return out
 
-    def add(self, x, y):    # element wise addition
-        # less efficient in backward function - will refactor later
+    def add(self, x, y, axis=()):    # element wise addition
         # bias should be passed in position of y
         shape = x.shape
         out = Parameter(shape, init_zeros=True)
@@ -84,14 +90,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.dw += out.dw
                 if y.eval_grad:
-                    if y.shape != x.shape:
-                        axis = []
-                        for ax in range(len(x.shape)):
-                            if x.shape[ax] != y.shape[ax]:
-                                axis.append(ax)
-                        y.dw += np.sum(out.dw, axis = tuple(axis)).reshape(y.shape)   # bias adding to batched vector
-                    else:
-                        y.dw += out.dw  # matrix/vector addition
+                    y.dw += np.sum(out.dw, axis = axis).reshape(y.shape)   # bias adding to batched vector
 
                 # return (x.dw, y.dw)
 
@@ -99,29 +98,7 @@ class ComputationalGraph:
 
         return out
 
-    def scalar_add(self, x, y):     # not used yet
-        # y is the scalar(not exactly, x is a matrix and y is a vector) - this is to support bias addition
-        # in Conv2d, might not fit every other situation. Bootstrapped; don't use for other cases
-        shape = x.shape
-        out = Parameter(shape, init_zeros=True)
-        out.w = np.add(x.w, y.w)
-
-        if self.grad_mode:
-            def backward():
-                # print('scalar_add')
-                if x.eval_grad:
-                    x.dw += out.dw
-                if y.eval_grad:
-                    for ydw, odw in zip(y.dw, out.dw):
-                        ydw += np.sum(odw)      # odw volume collapses onto a single element
-
-                # return (x.dw, y.dw)
-
-            self.backprop.append(lambda: backward())
-
-        return out
-
-    def subtract(self, x, y):   # element wise subtraction
+    def subtract(self, x, y, axis=()):   # element wise subtraction
         shape = x.shape
         out = Parameter(shape, init_zeros=True)
         out.w = np.subtract(x.w, y.w)
@@ -132,7 +109,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.dw += out.dw
                 if y.eval_grad:
-                    y.dw += -1.0*out.dw  # for the second parameter
+                    y.dw -= np.sum(out.dw, axis=axis).reshape(y.shape)  # for the second parameter
 
                 # return (x.dw, y.dw)
 
@@ -140,7 +117,7 @@ class ComputationalGraph:
 
         return out
 
-    def multiply(self, x, y):   # element wise vector multiplication
+    def multiply(self, x, y, axis=()):   # element wise vector multiplication
         # not for scalar multiply
         shape = x.shape
         out = Parameter(shape, init_zeros=True)
@@ -152,7 +129,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.dw += np.multiply(out.dw, y.w)
                 if y.eval_grad:
-                    y.dw += np.multiply(out.dw, x.w)
+                    y.dw += np.sum(np.multiply(out.dw, x.w), axis=axis).reshape(y.shape)
 
                 # return (x.dw, y.dw)
 
@@ -160,7 +137,7 @@ class ComputationalGraph:
 
         return out
 
-    def divide(self, x, y):   # element wise vector division
+    def divide(self, x, y, axis=()):   # element wise vector division
         shape = x.shape
         out = Parameter(shape, init_zeros=True)
         out.w = np.divide(x.w, y.w)
@@ -171,33 +148,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.dw += np.multiply(out.dw, np.divide(1.0, y.w))
                 if y.eval_grad:
-                    y.dw += np.multiply(out.dw, np.divide(1.0, x.w))
-
-                # return (x.dw, y.dw)
-
-            self.backprop.append(lambda: backward())
-
-        return out
-
-    def scalar_mul(self, x, y): # not used yet
-        # y is the scalar
-        if x.shape == (1, 1):
-            _ = y
-            y = x
-            x = _
-        shape = x.shape
-        out = Parameter(shape, init_zeros=True)
-        out.w = np.multiply(x.w, y.w)
-
-        if self.grad_mode:
-            def backward():
-                # print('scalar_mul')
-                if x.eval_grad:
-                    x.dw += np.multiply(out.dw, y.w)
-                if y.eval_grad:
-                    # like in the 'multiply', but the vector collapses
-                    # onto a single element with sum operation; think
-                    y.dw += np.full_like(y.dw, np.sum(np.multiply(out.dw, x.w)))
+                    y.dw += np.sum(np.multiply(out.dw, np.multiply(out.w, np.divide(-1.0, y.w))), axis=axis).reshape(y.shape)
 
                 # return (x.dw, y.dw)
 
@@ -213,7 +164,7 @@ class ComputationalGraph:
             def backward():
                 # print('sum')
                 if h.eval_grad:
-                    h.dw += np.multiply(np.ones(h.shape), out.dw)
+                    h.dw += out.dw
 
                 # return h.dw
 
@@ -413,6 +364,10 @@ class ComputationalGraph:
 
         return out
 
+    def normalize(self, x, type=None):
+        # useful:
+        pass
+
     # hidden and output units activations
     def relu(self, z):      # # element wise RELU activations
         shape = z.shape
@@ -549,15 +504,16 @@ G = ComputationalGraph()
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
 class Linear:
-    def __init__(self, h_p = 0, h_n = 0, init_zeros=False):
-        self.h_p = h_p  # previous layer units
-        self.h_n = h_n  # next layer units
+    def __init__(self, hidden_prev = 0, hidden_next = 0, init_zeros=False, graph=G):
+        self.hidden_prev = hidden_prev  # previous layer units
+        self.hidden_next = hidden_next  # next layer units
         self.init_zeros = init_zeros
+        self.graph = graph
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.h_n, self.h_p), init_zeros=self.init_zeros)  # weight volume
-        self.b = Parameter((self.h_n, 1), init_zeros=True)   # bias vector
+        self.W = Parameter((self.hidden_next, self.hidden_prev), init_zeros=self.init_zeros)  # weight volume
+        self.b = Parameter((self.hidden_next, 1), init_zeros=True)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
     def forward(self, x):
@@ -568,17 +524,19 @@ class Linear:
             x = Parameter(shape, eval_grad=True, init_zeros=True)
             x.w = _
 
+        # flatten the input if it came from layers like Conv2d
         if len(x.shape) > 2:
-            x = G.reshape(x)    # flatten the input
+            x = self.graph.reshape(x)
 
-        out = G.add(G.dot(self.W, x), self.b)   # y = Wx + b
+        # y = Wx + b
+        out = self.graph.add(self.graph.dot(self.W, x), self.b, axis=(1,))
 
         return out
 
 
 # conv nets
 class Conv2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0)):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph = G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -593,6 +551,7 @@ class Conv2d:
         self.filter_size = (self.input_channels, *(self.kernel_size))
         self.stride = stride
         self.padding = padding
+        self.graph = graph
         self.init_params()
 
     def init_params(self):
@@ -607,16 +566,17 @@ class Conv2d:
             x = Parameter(shape, eval_grad=False, init_zeros=True)
             x.w = _
 
-        out = G.add(G.conv2d(x, self.K, self.stride, self.padding), self.b)     # convoulution operation and adding bias
+        out = self.graph.add(self.graph.conv2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convoulution operation and adding bias
 
         return out
 
 
 # sequence models: LSTM cell
 class LSTM:
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, input_size, hidden_size, graph = G):
         self.input_size = input_size    # size of the input at each recurrent tick
         self.hidden_size = hidden_size  # size of hidden units h and c
+        self.graph = graph
         self.init_params()
 
     def init_params(self):
@@ -637,28 +597,29 @@ class LSTM:
             x.w = _
 
 
-        gates = G.add(G.add(G.dot(self.W_hh, h), self.b_hh), G.add(G.dot(self.W_ih, x), self.b_ih))
+        gates = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.b_hh, axis=(-1,)), self.graph.add(self.graph.dot(self.W_ih, x), self.b_ih, axis=(-1,)))
 
         # forget, input, gate(also called cell gate - different from cell state), output gates of the lstm cell
         # useful: http://colah.github.io/posts/2015-08-Understanding-LSTMs/
-        f, i, g, o = G.split(gates, sections=4, axis=0)
+        f, i, g, o = self.graph.split(gates, sections=4, axis=0)
 
-        f = G.sigmoid(f)
-        i = G.sigmoid(i)
-        g = G.tanh(g)
-        o = G.sigmoid(o)
+        f = self.graph.sigmoid(f)
+        i = self.graph.sigmoid(i)
+        g = self.graph.tanh(g)
+        o = self.graph.sigmoid(o)
 
-        c = G.add(G.multiply(f, c), G.multiply(i, g))
-        h = G.multiply(o, G.tanh(c))
+        c = self.graph.add(self.graph.multiply(f, c), self.graph.multiply(i, g))
+        h = self.graph.multiply(o, self.graph.tanh(c))
 
         return (h, c)
 
 
 # sequence models: RNN cell
 class RNN:
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, input_size, hidden_size, graph = G):
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.graph = graph
         self.init_params()
 
     def init_params(self):
@@ -678,10 +639,33 @@ class RNN:
             x = Parameter(shape, eval_grad=False, init_zeros=True)
             x.w = _
 
-        h = G.add(G.add(G.dot(self.W_hh, h), G.dot(self.W_ih, x)), self.b_hh)
-        h = G.tanh(h)
+        h = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.graph.dot(self.W_ih, x)), self.b_hh, axis=(-1,))
+        h = self.graph.tanh(h)
 
         return h
+
+
+class BatchNorm:
+    def __init__(self, hidden_shape, type='linear', graph = G):
+        self.type = type
+        self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
+        self.graph = graph
+        self.init_params()
+
+    def init_params(self):
+        self.gamma = Parameter((*self.hidden_shape, 1), init_ones=True)
+        self.beta = Parameter((*self.hidden_shape, 1), init_zeros=True)
+        self.parameters = [self.gamma, self.beta]
+
+    def forward(self, x):
+
+        # normalize the data to zero mean and unit variance
+        normalized = self.graph.normalize(x, type = self.type)
+
+        # scale and shift
+        out = self.graph.add(self.graph.multiply(normalized, gamma, axis=(-1)), self.beta, axis=(-1,))
+
+        return out
 
 
 # |    ||
