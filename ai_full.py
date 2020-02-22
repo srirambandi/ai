@@ -11,30 +11,47 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), eval_grad=True, init_zeros=False, init_ones=False, mu = 0.0, std = 0.01):
-        self.eval_grad = eval_grad  # if the parameter is a variable or an input/scalar
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, init_zeros=False, init_ones=False, uniform=False, mu = 0.0, std = 0.01):
         self.shape = shape
+        self.data = data
+        self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
         self.init_zeros = init_zeros
         self.init_ones = init_ones
+        self.uniform = uniform
         self.mu = mu    # mean and variance of the gaussian
         self.std = std  # distribution to initialize the parameter
         self.init_params()
 
     def init_params(self):
 
-        if self.init_zeros:
+        if self.data != None:
+            # initiating weights with passed data object of kind list/numpy-ndarray
+            self.w = np.array(data)
+            self.data = None    # memory conservation
+            self.shape = self.w.shape   # resolving conflict with passed shape and data shape
+
+        elif self.init_zeros:
+            # initiating with zeros of given shape
             self.w = np.zeros(self.shape)
+
         elif self.init_ones:
+            # initiating with ones of given shape
             self.w = np.ones(self.shape)
+
+        elif self.uniform:
+            # random initiation with uniform distribution
+            self.w = 2*np.random.rand(*self.shape) - 1.0
+
         else:
+            # random initiation with gaussian distribution
             self.w = self.std*np.random.randn(*self.shape) + self.mu
 
+        # setting gradient of parameter wrt some scalar, as zeros
         self.dw = np.zeros(self.shape)
-
-        return self.w
 
     # transpose
     def T(self):
+
         self.w = self.w.T
         self.dw = self.dw.T
         self.shape = tuple(reversed(self.shape))
@@ -539,10 +556,7 @@ class Linear:
     def forward(self, x):
         # making the input compatible with graph operations
         if type(x) is not Parameter:
-            shape = x.shape
-            _ = x
-            x = Parameter(shape, eval_grad=True, init_zeros=True)
-            x.w = _
+            x = Parameter(data=x, eval_grad=False)
 
         # flatten the input if it came from layers like Conv2d
         if len(x.shape) > 2:
@@ -580,11 +594,9 @@ class Conv2d:
         self.parameters = [self.K, self.b]
 
     def forward(self, x):
+
         if type(x) is not Parameter:
-            shape = x.shape
-            _ = x
-            x = Parameter(shape, eval_grad=False, init_zeros=True)
-            x.w = _
+            x = Parameter(data=x, eval_grad=False)
 
         out = self.graph.add(self.graph.conv2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convoulution operation and adding bias
 
@@ -611,10 +623,7 @@ class LSTM:
         h, c = hidden
 
         if type(x) is not Parameter:
-            shape = x.shape
-            _ = x
-            x = Parameter(shape, eval_grad=False, init_zeros=True)
-            x.w = _
+            x = Parameter(data=x, eval_grad=False)
 
 
         gates = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.b_hh, axis=(-1,)), self.graph.add(self.graph.dot(self.W_ih, x), self.b_ih, axis=(-1,)))
@@ -654,10 +663,7 @@ class RNN:
         h = hidden
 
         if type(x) is not Parameter:
-            shape = x.shape
-            _ = x
-            x = Parameter(shape, eval_grad=False, init_zeros=True)
-            x.w = _
+            x = Parameter(data=x, eval_grad=False)
 
         h = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.graph.dot(self.W_ih, x)), self.b_hh, axis=(-1,))
         h = self.graph.tanh(h)
@@ -735,10 +741,7 @@ class Loss:
     def MSELoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            shape = y_true.shape
-            _ = y_true
-            y_true = Parameter(shape, eval_grad=False, init_zeros=True)
-            y_true.w = _
+            y_true = Parameter(data=y_true, eval_grad=False)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
         batch_size.w.fill(float(y_true.shape[-1]))
@@ -755,10 +758,7 @@ class Loss:
     def CrossEntropyLoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            shape = y_true.shape
-            _ = y_true
-            y_true = Parameter(shape, eval_grad=False, init_zeros=True)
-            y_true.w = _
+            y_true = Parameter(data=y_true, eval_grad=False)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
         batch_size.w.fill(float(y_true.shape[-1]))
