@@ -156,15 +156,35 @@ class ComputationalGraph:
 
         return out
 
-    def sum(self, h):   # sum of all elements in the matrix
-        out = Parameter((1, 1), init_zeros=True)
-        out.w[0][0] = np.sum(h.w)
+    def sum(self, h, axis=None):   # sum of all elements in the matrix
+        if axis == None:
+            res = np.sum(h.w).reshape(1, 1)
+        else:
+            res = np.sum(h.w, axis=axis, keepdims=True)
+        out = Parameter(res.shape, init_zeros=True)
+        out.w = res
 
         if self.grad_mode:
             def backward():
                 # print('sum')
                 if h.eval_grad:
                     h.dw += out.dw
+
+                # return h.dw
+
+            self.backprop.append(lambda: backward())
+
+        return out
+
+    def power(self, h, power):   # power of all elements in the matrix
+        out = Parameter(h.shape, init_zeros=True)
+        out.w = np.power(h.w, power) if power >= 0 else np.power(h.w, power) + 1e-6     # numerical stability for -ve power
+
+        if self.grad_mode:
+            def backward():
+                # print('power')
+                if h.eval_grad:
+                    h.dw += np.multiply(out.dw, power * np.power(h.w, power - 1))
 
                 # return h.dw
 
@@ -536,7 +556,7 @@ class Linear:
 
 # conv nets
 class Conv2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph = G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -573,7 +593,7 @@ class Conv2d:
 
 # sequence models: LSTM cell
 class LSTM:
-    def __init__(self, input_size, hidden_size, graph = G):
+    def __init__(self, input_size, hidden_size, graph=G):
         self.input_size = input_size    # size of the input at each recurrent tick
         self.hidden_size = hidden_size  # size of hidden units h and c
         self.graph = graph
@@ -616,7 +636,7 @@ class LSTM:
 
 # sequence models: RNN cell
 class RNN:
-    def __init__(self, input_size, hidden_size, graph = G):
+    def __init__(self, input_size, hidden_size, graph=G):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.graph = graph
@@ -646,9 +666,9 @@ class RNN:
 
 
 class BatchNorm:
-    def __init__(self, hidden_shape, type='linear', graph = G):
-        self.type = type
+    def __init__(self, hidden_shape, axis=-1, graph=G):
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
+        self.axis = axis    # along batch channel axis for conv layers and along batches for linear
         self.graph = graph
         self.init_params()
 
@@ -656,11 +676,26 @@ class BatchNorm:
         self.gamma = Parameter((*self.hidden_shape, 1), init_ones=True)
         self.beta = Parameter((*self.hidden_shape, 1), init_zeros=True)
         self.parameters = [self.gamma, self.beta]
+        self.m = np.zeros((*self.hidden_shape, 1))    # moving mean
+        self.v = np.ones((*self.hidden_shape, 1))     # moving variance
 
     def forward(self, x):
 
-        # normalize the data to zero mean and unit variance
-        normalized = self.graph.normalize(x, type = self.type)
+        if self.graph.grad_mode:    # training
+
+            # normalize the data to zero mean and unit variance
+            batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+            batch_size.w.fill(float(x.shape[-1]))
+
+            mean = self.graph.divide(self.graph.sum(x, axis=self.axis), batch_size)
+            centre = self.graph.subtract(x, mean, axis=self.axis)
+            var = self.graph.divide(self.graph.sum(self.graph.power(centre, 2), axis=self.axis), batch_size)
+
+            normalized = self.graph.multiply(centre, self.graph.power(var, -0.5), axis=self.axis)
+
+        else:   # testing
+
+            pass
 
         # scale and shift
         out = self.graph.add(self.graph.multiply(normalized, gamma, axis=(-1)), self.beta, axis=(-1,))
@@ -704,13 +739,13 @@ class Loss:
             y_true = Parameter(shape, eval_grad=False, init_zeros=True)
             y_true.w = _
 
-        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-        m.w[0, 0] = float(y_true.shape[-1])
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
 
         # L = (y_out - y_true)^2
         l = self.graph.sum(self.graph.multiply(self.graph.subtract(y_out, y_true), self.graph.subtract(y_out, y_true)))
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
-        l = self.graph.divide(l, m)
+        l = self.graph.divide(l, batch_size)
 
         l.dw[0, 0] = 1.0  # dl/dl = 1.0
 
@@ -724,8 +759,8 @@ class Loss:
             y_true = Parameter(shape, eval_grad=False, init_zeros=True)
             y_true.w = _
 
-        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-        m.w[0, 0] = float(y_true.shape[-1])
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
 
         neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
         neg_one.w.fill(-1.0)  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
@@ -733,7 +768,7 @@ class Loss:
         # L = -Summation(y_true*log(y_out))
         l = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_out))), neg_one)
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
-        l = self.graph.divide(l, m)
+        l = self.graph.divide(l, batch_size)
 
         l.dw[0, 0] = 1.0  # dl/dl = 1.0
 
@@ -741,12 +776,12 @@ class Loss:
 
     def TestLoss(self, y_out):
 
-        m = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-        m.w[0, 0] = float(y_out.shape[-1])
+        mbatch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_out.shape[-1]))
 
         # a test loss score function that measures the sum of each output vector as the loss of that sample
         l = self.graph.sum(y_out)
-        l = self.graph.divide(l, m)
+        l = self.graph.divide(l, batch_size)
 
         l.dw[0, 0] = 1.0
 
