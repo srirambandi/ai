@@ -683,22 +683,23 @@ class BatchNorm:
 
         if self.graph.grad_mode:    # training
 
-            # normalize the data to zero mean and unit variance
-            batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-            batch_size.w.fill(float(x.shape[-1]))
+            batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size/channel size
+            batch_size.w.fill(float(x.shape[self.axis]))
 
+            # calculate mean and variance
             mean = self.graph.divide(self.graph.sum(x, axis=self.axis), batch_size)
-            centre = self.graph.subtract(x, mean, axis=self.axis)
-            var = self.graph.divide(self.graph.sum(self.graph.power(centre, 2), axis=self.axis), batch_size)
+            center = self.graph.subtract(x, mean, axis=self.axis)
+            var = self.graph.divide(self.graph.sum(self.graph.power(center, 2), axis=self.axis), batch_size)
 
-            normalized = self.graph.multiply(centre, self.graph.power(var, -0.5), axis=self.axis)
+            # normalize the data to zero mean and unit variance
+            normalized = self.graph.multiply(center, self.graph.power(var, -0.5), axis=self.axis)
 
         else:   # testing
 
             pass
 
         # scale and shift
-        out = self.graph.add(self.graph.multiply(normalized, gamma, axis=(-1)), self.beta, axis=(-1,))
+        out = self.graph.add(self.graph.multiply(normalized, self.gamma, axis=(-1)), self.beta, axis=(-1,))
 
         return out
 
