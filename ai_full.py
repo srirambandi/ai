@@ -27,7 +27,7 @@ class Parameter:
         if self.data != None:
             # initiating weights with passed data object of kind list/numpy-ndarray
             self.w = np.array(data)
-            self.data = None    # memory conservation
+            self.data = None    # releasing data object for memory conservation
             self.shape = self.w.shape   # resolving conflict with passed shape and data shape
 
         elif self.init_zeros:
@@ -402,7 +402,7 @@ class ComputationalGraph:
         return out
 
     # hidden and output units activations
-    def relu(self, z):      # # element wise RELU activations
+    def relu(self, z):      # element wise ReLU activations
         shape = z.shape
         out = Parameter(shape, init_zeros=True)
         out.w = np.maximum(z.w, 0)
@@ -420,14 +420,14 @@ class ComputationalGraph:
 
         return out
 
-    def lrelu(self, z, alpha=1e-2):      # # element wise RELU activations
+    def lrelu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
         shape = z.shape
         out = Parameter(shape, init_zeros=True)
         out.w = np.maximum(z.w, alpha * z.w)
 
         if self.grad_mode:
             def backward():
-                # print('leaky_relu')
+                # print('lrelu')
                 if z.eval_grad:
                     z.dw += out.dw.copy()
                     z.dw[z.w < 0] *= alpha
@@ -567,6 +567,9 @@ class Linear:
         self.b = Parameter((self.hidden_next, 1), init_zeros=True)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
+    def __call__(self, x):  # easy callable
+        self.forward(x)
+
     def forward(self, x):
         # making the input compatible with graph operations
         if type(x) is not Parameter:
@@ -607,6 +610,9 @@ class Conv2d:
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True)
         self.parameters = [self.K, self.b]
 
+    def __call__(self, x):  # easy callable
+        self.forward(x)
+
     def forward(self, x):
 
         if type(x) is not Parameter:
@@ -631,6 +637,9 @@ class LSTM:
         self.b_ih = Parameter((4*self.hidden_size, 1))  # input to hidden bias vector
         self.b_hh = Parameter((4*self.hidden_size, 1))  # hidden to hidden bias vector
         self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
+
+    def __call__(self, x, hidden):  # easy callable
+        self.forward(x, hidden)
 
     def forward(self, x, hidden):
 
@@ -672,6 +681,9 @@ class RNN:
         self.b_hh = Parameter((self.hidden_size, 1), init_zeros=True)
         self.parameters = [self.W_ih, self.W_hh, self.b_hh]
 
+    def __call__(self, x, hidden):  # easy callable
+        self.forward(x, hidden)
+
     def forward(self, x, hidden):
 
         h = hidden
@@ -700,6 +712,9 @@ class BatchNorm:
         self.parameters = [self.gamma, self.beta]
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
+
+    def __call__(self, x):  # easy callable
+        self.forward(x)
 
     def forward(self, x):
 
