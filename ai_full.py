@@ -401,10 +401,6 @@ class ComputationalGraph:
 
         return out
 
-    def normalize(self, x, type=None):
-        # useful:
-        pass
-
     # hidden and output units activations
     def relu(self, z):      # # element wise RELU activations
         shape = z.shape
@@ -417,6 +413,24 @@ class ComputationalGraph:
                 if z.eval_grad:
                     z.dw += out.dw.copy()
                     z.dw[z.w < 0] = 0
+
+                # return z.dw
+
+            self.backprop.append(lambda: backward())
+
+        return out
+
+    def lrelu(self, z, alpha=1e-2):      # # element wise RELU activations
+        shape = z.shape
+        out = Parameter(shape, init_zeros=True)
+        out.w = np.maximum(z.w, alpha * z.w)
+
+        if self.grad_mode:
+            def backward():
+                # print('leaky_relu')
+                if z.eval_grad:
+                    z.dw += out.dw.copy()
+                    z.dw[z.w < 0] *= alpha
 
                 # return z.dw
 
