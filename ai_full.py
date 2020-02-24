@@ -672,20 +672,25 @@ class RNN:
 
 
 class BatchNorm:
-    def __init__(self, hidden_shape, axis=-1, graph=G):
+    def __init__(self, hidden_shape, axis=-1, momentum=0.9, graph=G):
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
         self.axis = axis    # along batch channel axis for conv layers and along batches for linear
+        self.momentum = momentum
         self.graph = graph
         self.init_params()
 
     def init_params(self):
-        self.gamma = Parameter((*self.hidden_shape, 1), init_ones=True)
-        self.beta = Parameter((*self.hidden_shape, 1), init_zeros=True)
+        shape = (*self.hidden_shape, 1)
+        self.gamma = Parameter(shape, init_ones=True)
+        self.beta = Parameter(shape, init_zeros=True)
         self.parameters = [self.gamma, self.beta]
-        self.m = np.zeros((*self.hidden_shape, 1))    # moving mean
-        self.v = np.ones((*self.hidden_shape, 1))     # moving variance
+        self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
+        self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
     def forward(self, x):
+
+        if type(x) is not Parameter:
+            x = Parameter(data=x, eval_grad=False)
 
         if self.graph.grad_mode:    # training
 
@@ -697,15 +702,20 @@ class BatchNorm:
             center = self.graph.subtract(x, mean, axis=self.axis)
             var = self.graph.divide(self.graph.sum(self.graph.power(center, 2), axis=self.axis), batch_size)
 
+            self.m = self.momentum * self.m + (1 - self.momentum) * mean.w
+            self.v = self.momentum * self.v + (1 - self.momentum) * var.w
+
             # normalize the data to zero mean and unit variance
             normalized = self.graph.multiply(center, self.graph.power(var, -0.5), axis=self.axis)
 
         else:   # testing
 
-            pass
+            center = np.subtract(x.w, self.m)
+            normalized = np.multiply(center, np.power(self.v + 1e-6, -0.5))
+            normalized = Parameter(data=normalized, eval_grad=False)
 
         # scale and shift
-        out = self.graph.add(self.graph.multiply(normalized, self.gamma, axis=(-1)), self.beta, axis=(-1,))
+        out = self.graph.add(self.graph.multiply(normalized, self.gamma, axis=(-1,)), self.beta, axis=(-1,))
 
         return out
 
