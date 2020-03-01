@@ -239,12 +239,12 @@ class ComputationalGraph:
             p = (p, p)
 
         fi = K.shape[0]     # number of filters
-        ch = x.shape[0]     # number of input channels
+        ch = K.shape[1]     # number of input channels
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
         output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
-        pad_shape = (ch, *(map(lambda a, b: a + 2*b, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
+        pad_shape = (ch, *(map(lambda i, p: i + 2*p, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
 
         out = np.zeros(output_maps_shape)  # output feature maps
 
@@ -255,14 +255,14 @@ class ComputationalGraph:
 
         # convolution operation is commutative because of this flipping
         # this step and consequently flipping in backward op are not essential for network
-        flipped_K = np.flip(np.flip(K.w), axis=(0, 1))
+        flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
 
         for r in range(out.shape[1]):        # convolving operation here
             for c in range(out.shape[2]):    # traversing rous and columns of feature map
 
                 # multiplying traversed grid portions of padded input feature maps with kernel grids element-wise
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
-                out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K.reshape(*K.shape, 1)), axis=(1, 2, 3))
+                out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K), axis=(1, 2, 3))
 
         output_feature_maps = Parameter(out.shape, init_zeros=True)
         output_feature_maps.w = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
@@ -296,7 +296,7 @@ class ComputationalGraph:
                             # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
 
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
-                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K.reshape(*K.shape, 1)), axis=0)
+                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K), axis=0)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
@@ -307,6 +307,83 @@ class ComputationalGraph:
             self.backprop.append(lambda: backward())
 
         return output_feature_maps
+
+    def convtranspose2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
+        # useful: https://arxiv.org/pdf/1603.07285.pdf
+        if type(s) is not tuple:    # already handled in Conv2d class definition
+            s = (s, s)              # adding for compatibility direct calling without using Conv2d class
+        if type(p) is not tuple:
+            p = (p, p)
+
+        fi = K.shape[0]     # number of filters
+        ch = K.shape[1]     # number of input channels
+        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
+        i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
+        batch = x.shape[-1] # batch size of the input
+        output_img_shape = (ch, *(map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
+        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_img_shape, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
+
+        out = np.zeros(pad_output_img_shape)  # output feature maps
+
+        # convolution operation is commutative because of this flipping
+        # this step and consequently flipping in backward op are not essential for network
+        flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+
+        for r in range(x.shape[1]):
+            for c in range(x.shape[2]):
+
+                # solving gradient for input feature map that caused the elements in r, c position of every output filter
+                # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K), axis=0)
+
+        # cutting the padded portion from the input-feature-map's gradient
+        # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+        out = out[:, p[0]:out.shape[1]-p[0], p[1]:out.shape[2]-p[1], :]
+
+        output_image = Parameter(out.shape, init_zeros=True)
+        output_image.w = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
+
+        if self.grad_mode:
+            def backward():
+                # print('conv2d')
+
+                pad_output_grad = np.zeros(pad_output_img_shape)
+                pad_output_grad[:, p[0]:pad_output_grad.shape[1]-p[0], p[1]:pad_output_grad.shape[2]-p[1], :] += output_image.dw
+                pad_output_grad = pad_output_grad.reshape(1, pad_output_img_shape)
+
+                if K.eval_grad:
+
+                    flippe_K_grad = np.zeros(K.shape)
+
+                    for r in range(x.shape[1]):
+                        for c in range(x.shape[2]):
+
+                            # solving gradient for each kernel filter that caused the elements in r, c position of every output filter
+                            # in every bacth; sketch and think, with input stacked fi times to make computation fast
+
+                            _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                            # updating the kernel filter set gradient - there will be RxC such updates
+                            flippe_K_grad += np.sum(np.multiply(_, pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
+
+                    K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
+
+                if x.eval_grad:
+
+                    for r in range(x.shape[1]):
+                        for c in range(x.shape[2]):
+
+                            # solving gradient for input feature map that caused the elements in r, c position of every output filter
+                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                            x.dw[:, r, c, :] += np.sum(np.multiply(pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K), axis=(1, 2, 3))
+
+                # return (K.dw, x.dw)
+
+            self.backprop.append(lambda: backward())
+
+        return output_image
 
     def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d
         if type(k) is not tuple:
@@ -322,7 +399,7 @@ class ComputationalGraph:
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1]
         pool_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
-        pad_shape = (fi, *(map(lambda a, b: a + 2*b, i, p)), batch)  # padded input shape
+        pad_shape = (fi, *(map(lambda i, p: i + 2*p, i, p)), batch)  # padded input shape
 
         out = np.zeros((pool_shape))
 
@@ -585,7 +662,7 @@ class Linear:
         return out
 
 
-# conv nets
+# convolutional neural network
 class Conv2d:
     def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
         self.input_channels = input_channels
@@ -618,7 +695,45 @@ class Conv2d:
         if type(x) is not Parameter:
             x = Parameter(data=x, eval_grad=False)
 
-        out = self.graph.add(self.graph.conv2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convoulution operation and adding bias
+        out = self.graph.add(self.graph.conv2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convolution operation and adding bias
+
+        return out
+
+
+# convolutional neural network
+class ConvTranspose2d:
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
+        self.input_channels = input_channels
+        self.output_channels = output_channels
+
+        if type(kernel_size) is not tuple:
+            kernel_size = (kernel_size, kernel_size)
+        if type(stride) is not tuple:
+            stride = (stride, stride)
+        if type(padding) is not tuple:
+            padding = (padding, padding)
+
+        self.kernel_size = kernel_size
+        self.filter_size = (self.output_channels, *(self.kernel_size))
+        self.stride = stride
+        self.padding = padding
+        self.graph = graph
+        self.init_params()
+
+    def init_params(self):
+        self.K = Parameter((self.input_channels, *self.filter_size))
+        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True)
+        self.parameters = [self.K, self.b]
+
+    def __call__(self, x):  # easy callable
+        self.forward(x)
+
+    def forward(self, x):
+
+        if type(x) is not Parameter:
+            x = Parameter(data=x, eval_grad=False)
+
+        out = self.graph.add(self.graph.convtranspose2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convolution operation and adding bias
 
         return out
 
@@ -728,19 +843,19 @@ class BatchNorm:
 
             # calculate mean and variance
             mean = self.graph.divide(self.graph.sum(x, axis=self.axis), batch_size)
-            center = self.graph.subtract(x, mean, axis=self.axis)
-            var = self.graph.divide(self.graph.sum(self.graph.power(center, 2), axis=self.axis), batch_size)
+            centered = self.graph.subtract(x, mean, axis=self.axis)
+            var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=self.axis), batch_size)
 
             self.m = self.momentum * self.m + (1 - self.momentum) * mean.w
             self.v = self.momentum * self.v + (1 - self.momentum) * var.w
 
             # normalize the data to zero mean and unit variance
-            normalized = self.graph.multiply(center, self.graph.power(var, -0.5), axis=self.axis)
+            normalized = self.graph.multiply(centered, self.graph.power(var, -0.5), axis=self.axis)
 
         else:   # testing
 
-            center = np.subtract(x.w, self.m)
-            normalized = np.multiply(center, np.power(self.v + 1e-6, -0.5))
+            centered = np.subtract(x.w, self.m)
+            normalized = np.multiply(centered, np.power(self.v + 1e-6, -0.5))
             normalized = Parameter(data=normalized, eval_grad=False)
 
         # scale and shift
