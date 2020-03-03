@@ -243,8 +243,8 @@ class ComputationalGraph:
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
-        output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
-        pad_shape = (ch, *(map(lambda i, p: i + 2*p, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
+        output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j, batch_size)
+        pad_shape = (ch, *(map(lambda i, p: i + 2*p, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j, batch_size)
 
         out = np.zeros(output_maps_shape)  # output feature maps
 
@@ -253,16 +253,17 @@ class ComputationalGraph:
         pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.w
         pad_x = pad_x.reshape(1, *pad_shape)
 
-        # convolution operation is commutative because of this flipping
-        # this step and consequently flipping in backward op are not essential for network
-        flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+        # # convolution operation is commutative because of this flipping
+        # # this step and consequently flipping in backward op are not essential for network
+        # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+        kernel = K.w.reshape(*K.shape, 1)
 
         for r in range(out.shape[1]):        # convolving operation here
             for c in range(out.shape[2]):    # traversing rous and columns of feature map
 
                 # multiplying traversed grid portions of padded input feature maps with kernel grids element-wise
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
-                out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K), axis=(1, 2, 3))
+                out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
         output_feature_maps = Parameter(out.shape, init_zeros=True)
         output_feature_maps.w = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
@@ -272,7 +273,7 @@ class ComputationalGraph:
                 # print('conv2d')
                 if K.eval_grad:
 
-                    flippe_K_grad = np.zeros(K.shape)
+                    # flippe_K_grad = np.zeros(K.shape)
                     for r in range(output_feature_maps.shape[1]):
                         for c in range(output_feature_maps.shape[2]):
 
@@ -281,9 +282,9 @@ class ComputationalGraph:
 
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
-                            flippe_K_grad += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
+                            K.dw += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
-                    K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
+                    # K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
 
                 if x.eval_grad:
 
@@ -296,7 +297,7 @@ class ComputationalGraph:
                             # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
 
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
-                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K), axis=0)
+                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
@@ -308,35 +309,35 @@ class ComputationalGraph:
 
         return output_feature_maps
 
-    def convtranspose2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
+    def convtranspose2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution transpose operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        if type(s) is not tuple:    # already handled in Conv2d class definition
-            s = (s, s)              # adding for compatibility direct calling without using Conv2d class
+        if type(s) is not tuple:    # already handled in ConvTranspose2d class definition
+            s = (s, s)              # adding for compatibility direct calling without using ConvTranspose2d class
         if type(p) is not tuple:
             p = (p, p)
 
-        fi = K.shape[0]     # number of filters
-        ch = K.shape[1]     # number of input channels
+        fi = K.shape[0]     # number of filters - here number of feature input planes
+        ch = K.shape[1]     # number of input channels - here number of image output planes
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
-        output_img_shape = (ch, *(map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j)
-        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_img_shape, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j)
+        output_img_shape = (ch, *(map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p)), batch) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
+        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_img_shape, p)), batch)   # padded input feature maps shape - (filters, new_i, new_j, batch_size)
 
         out = np.zeros(pad_output_img_shape)  # output feature maps
 
-        # convolution operation is commutative because of this flipping
-        # this step and consequently flipping in backward op are not essential for network
-        flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+        # # convolution operation is commutative because of this flipping
+        # # this step and consequently flipping in backward op are not essential for network
+        # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+        kernel = K.w.reshape(*K.shape, 1)
 
         for r in range(x.shape[1]):
             for c in range(x.shape[2]):
 
-                # solving gradient for input feature map that caused the elements in r, c position of every output filter
-                # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+                # computing output image feature map by convolving across each element of input feature map with kernel
 
                 _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
-                out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, flipped_K), axis=0)
+                out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
 
         # cutting the padded portion from the input-feature-map's gradient
         # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
@@ -355,29 +356,26 @@ class ComputationalGraph:
 
                 if K.eval_grad:
 
-                    flippe_K_grad = np.zeros(K.shape)
-
+                    # flippe_K_grad = np.zeros(K.shape)
                     for r in range(x.shape[1]):
                         for c in range(x.shape[2]):
 
-                            # solving gradient for each kernel filter that caused the elements in r, c position of every output filter
-                            # in every bacth; sketch and think, with input stacked fi times to make computation fast
+                            # solving gradient for each kernel filter
 
                             _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
-                            flippe_K_grad += np.sum(np.multiply(_, pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
+                            K.dw += np.sum(np.multiply(_, pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
-                    K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
+                    # K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
 
                 if x.eval_grad:
 
                     for r in range(x.shape[1]):
                         for c in range(x.shape[2]):
 
-                            # solving gradient for input feature map that caused the elements in r, c position of every output filter
-                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+                            # solving gradient for input feature map
 
-                            x.dw[:, r, c, :] += np.sum(np.multiply(pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], flipped_K), axis=(1, 2, 3))
+                            x.dw[:, r, c, :] += np.sum(np.multiply(pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
                 # return (K.dw, x.dw)
 
@@ -395,7 +393,7 @@ class ComputationalGraph:
 
         out = []
 
-        fi = x.shape[0]     # number of input filters(panes)
+        fi = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1]
         pool_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
