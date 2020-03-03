@@ -361,7 +361,8 @@ class ComputationalGraph:
         return output_image
 
     def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d
-
+        # useful: https://arxiv.org/pdf/1603.07285.pdf
+        
         fi = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1]
