@@ -227,16 +227,10 @@ class ComputationalGraph:
         return out
 
     # layers operations
-    # UPDATE: see older commits of conv2d and maxpool2d for easier Understanding
+    # see older commits of conv2d and maxpool2d for easier understanding of
     # the portion for conv2d and maxpool2d operation became little complicated to facilitate fast computation.
-    # For an easier logic code, see this commit which is very inefficient but easy to understand
-    # https://github.com/srirambandi/ai/commit/f886cbd616b3d808acaa7d6c702d2b8b93fe8d9e#diff-0ef108fef71dfdcd1cbaad80982c92ac
     def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        if type(s) is not tuple:    # already handled in Conv2d class definition
-            s = (s, s)              # adding for compatibility direct calling without using Conv2d class
-        if type(p) is not tuple:
-            p = (p, p)
 
         fi = K.shape[0]     # number of filters
         ch = K.shape[1]     # number of input channels
@@ -252,10 +246,6 @@ class ComputationalGraph:
         # padded input - copying the actual input onto pad input centre
         pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.w
         pad_x = pad_x.reshape(1, *pad_shape)
-
-        # # convolution operation is commutative because of this flipping
-        # # this step and consequently flipping in backward op are not essential for network
-        # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
 
         # convolution function computes cross-correlation instead of actual convolution
         kernel = K.w.reshape(*K.shape, 1)
@@ -275,7 +265,6 @@ class ComputationalGraph:
                 # print('conv2d')
                 if K.eval_grad:
 
-                    # flippe_K_grad = np.zeros(K.shape)
                     for r in range(output_feature_maps.shape[1]):
                         for c in range(output_feature_maps.shape[2]):
 
@@ -285,8 +274,6 @@ class ComputationalGraph:
                             _ = output_feature_maps.dw[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
                             K.dw += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
-
-                    # K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
 
                 if x.eval_grad:
 
@@ -313,10 +300,6 @@ class ComputationalGraph:
 
     def convtranspose2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution transpose operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        if type(s) is not tuple:    # already handled in ConvTranspose2d class definition
-            s = (s, s)              # adding for compatibility direct calling without using ConvTranspose2d class
-        if type(p) is not tuple:
-            p = (p, p)
 
         fi = K.shape[0]     # number of filters - here number of feature input planes
         ch = K.shape[1]     # number of input channels - here number of image output planes
@@ -328,10 +311,6 @@ class ComputationalGraph:
 
         out = np.zeros(pad_output_img_shape)  # output feature maps
 
-        # # convolution operation is commutative because of this flipping
-        # # this step and consequently flipping in backward op are not essential for network
-        # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
-
         # convolution function computes cross-correlation instead of actual convolution
         kernel = K.w.reshape(*K.shape, 1)
 
@@ -339,7 +318,6 @@ class ComputationalGraph:
             for c in range(x.shape[2]):
 
                 # computing output image feature map by convolving across each element of input feature map with kernel
-
                 _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                 out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
 
@@ -360,17 +338,13 @@ class ComputationalGraph:
 
                 if K.eval_grad:
 
-                    # flippe_K_grad = np.zeros(K.shape)
                     for r in range(x.shape[1]):
                         for c in range(x.shape[2]):
 
                             # solving gradient for each kernel filter
-
                             _ = x.w[:, r, c, :].reshape(fi, 1, 1, 1, batch)
                             # updating the kernel filter set gradient - there will be RxC such updates
                             K.dw += np.sum(np.multiply(_, pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
-
-                    # K.dw += np.flip(np.flip(flippe_K_grad), axis=(0, 1))
 
                 if x.eval_grad:
 
@@ -378,7 +352,6 @@ class ComputationalGraph:
                         for c in range(x.shape[2]):
 
                             # solving gradient for input feature map
-
                             x.dw[:, r, c, :] += np.sum(np.multiply(pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
                 # return (K.dw, x.dw)
@@ -388,14 +361,6 @@ class ComputationalGraph:
         return output_image
 
     def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d
-        if type(k) is not tuple:
-            k = (k, k)
-        if type(s) is not tuple:
-            s = (s, s)
-        if type(p) is not tuple:
-            p = (p, p)
-
-        out = []
 
         fi = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
