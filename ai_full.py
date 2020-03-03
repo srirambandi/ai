@@ -256,6 +256,8 @@ class ComputationalGraph:
         # # convolution operation is commutative because of this flipping
         # # this step and consequently flipping in backward op are not essential for network
         # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+
+        # convolution function computes cross-correlation instead of actual convolution
         kernel = K.w.reshape(*K.shape, 1)
 
         for r in range(out.shape[1]):        # convolving operation here
@@ -329,6 +331,8 @@ class ComputationalGraph:
         # # convolution operation is commutative because of this flipping
         # # this step and consequently flipping in backward op are not essential for network
         # flipped_K = np.flip(np.flip(K.w), axis=(0, 1)).reshape(*K.shape, 1)
+
+        # convolution function computes cross-correlation instead of actual convolution
         kernel = K.w.reshape(*K.shape, 1)
 
         for r in range(x.shape[1]):
