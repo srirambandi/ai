@@ -11,15 +11,29 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, init_zeros=False, init_ones=False, uniform=False, mu = 0.0, std = 0.01):
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True,
+                init_zeros=False, init_ones=False, constant=1.0,
+                uniform=False, low = -1.0, high = 1.0,
+                mean = 0.0, std = 0.01):
+
+        # properties
         self.shape = shape
         self.data = data
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
+
+        # constant initializations
         self.init_zeros = init_zeros
         self.init_ones = init_ones
+        self.constant = constant
+
+        # initializing from distributions
         self.uniform = uniform
-        self.mu = mu    # mean and variance of the gaussian
-        self.std = std  # distribution to initialize the parameter
+        self.low = low      # high and low of uniform
+        self.high = high    # distribution to initialize the parameter
+        self.mean = mean    # mean and variance of the gaussian
+        self.std = std      # distribution to initialize the parameter
+
+        # creating weight and gradient matrices
         self.init_params()
 
     def init_params(self):
@@ -36,15 +50,15 @@ class Parameter:
 
         elif self.init_ones:
             # initiating with ones of given shape
-            self.w = np.ones(self.shape)
+            self.w = np.ones(self.shape) * self.constant
 
         elif self.uniform:
             # random initiation with uniform distribution
-            self.w = 2*np.random.rand(*self.shape) - 1.0
+            self.w = (self.high - self.low) * np.random.rand(*self.shape) + self.low
 
         else:
             # random initiation with gaussian distribution
-            self.w = self.std*np.random.randn(*self.shape) + self.mu
+            self.w = self.std*np.random.randn(*self.shape) + self.mean
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.dw = np.zeros(self.shape)
