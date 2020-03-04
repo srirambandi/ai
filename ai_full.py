@@ -1087,7 +1087,7 @@ class Model:
             layers.append(parameters)
 
         if file == None:
-            file = str(self.__class__).strip('<>').split()[1].strip("\'").split('.')[1]
+            file = self.__class__.__name__
 
         np.save(file+'.npy', layers)
 
@@ -1096,7 +1096,7 @@ class Model:
     def load(self, file=None):  # model.load() - loads the state of net from a file
         print('loading model from', file)
         if file == None:
-            file = str(self.__class__).strip('<>').split()[1].strip("\'").split('.')[1]+'.npy'
+            file = self.__class__.__name__+'.npy'
 
         layers = np.load(file, allow_pickle=True)
 
