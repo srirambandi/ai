@@ -24,9 +24,9 @@ class Parameter:
 
     def init_params(self):
 
-        if self.data != None:
+        if self.data is not None:
             # initiating weights with passed data object of kind list/numpy-ndarray
-            self.w = np.array(data)
+            self.w = np.array(self.data)
             self.data = None    # releasing data object for memory conservation
             self.shape = self.w.shape   # resolving conflict with passed shape and data shape
 
@@ -306,8 +306,8 @@ class ComputationalGraph:
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
-        output_img_shape = (ch, *(map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p)), batch) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
-        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_img_shape, p)), batch)   # padded input feature maps shape - (filters, new_i, new_j, batch_size)
+        output_shape = tuple((map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p))) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
+        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_shape, p)), batch)   # padded input feature maps shape - (filters, new_i, new_j, batch_size)
 
         out = np.zeros(pad_output_img_shape)  # output feature maps
 
@@ -334,7 +334,7 @@ class ComputationalGraph:
 
                 pad_output_grad = np.zeros(pad_output_img_shape)
                 pad_output_grad[:, p[0]:pad_output_grad.shape[1]-p[0], p[1]:pad_output_grad.shape[2]-p[1], :] += output_image.dw
-                pad_output_grad = pad_output_grad.reshape(1, pad_output_img_shape)
+                pad_output_grad = pad_output_grad.reshape(1, *pad_output_img_shape)
 
                 if K.eval_grad:
 
@@ -362,7 +362,7 @@ class ComputationalGraph:
 
     def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         fi = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1]
@@ -613,7 +613,7 @@ class Linear:
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
     def __call__(self, x):  # easy callable
-        self.forward(x)
+        return self.forward(x)
 
     def forward(self, x):
         # making the input compatible with graph operations
@@ -656,7 +656,7 @@ class Conv2d:
         self.parameters = [self.K, self.b]
 
     def __call__(self, x):  # easy callable
-        self.forward(x)
+        return self.forward(x)
 
     def forward(self, x):
 
@@ -694,7 +694,7 @@ class ConvTranspose2d:
         self.parameters = [self.K, self.b]
 
     def __call__(self, x):  # easy callable
-        self.forward(x)
+        return self.forward(x)
 
     def forward(self, x):
 
@@ -722,7 +722,7 @@ class LSTM:
         self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
 
     def __call__(self, x, hidden):  # easy callable
-        self.forward(x, hidden)
+        return self.forward(x, hidden)
 
     def forward(self, x, hidden):
 
@@ -765,7 +765,7 @@ class RNN:
         self.parameters = [self.W_ih, self.W_hh, self.b_hh]
 
     def __call__(self, x, hidden):  # easy callable
-        self.forward(x, hidden)
+        return self.forward(x, hidden)
 
     def forward(self, x, hidden):
 
@@ -797,7 +797,7 @@ class BatchNorm:
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
     def __call__(self, x):  # easy callable
-        self.forward(x)
+        return self.forward(x)
 
     def forward(self, x):
 
