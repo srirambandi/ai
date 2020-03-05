@@ -911,6 +911,36 @@ class Loss:
 
         return l
 
+    def WassersteinDistance(self, y_out, y_true):
+
+        if type(y_true) is not Parameter:
+            y_true = Parameter(data=y_true, eval_grad=False)
+
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
+
+        pass
+
+    def KLDivLoss(self, y_out, y_true):
+
+        if type(y_true) is not Parameter:
+            y_true = Parameter(data=y_true, eval_grad=False)
+
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
+
+        pass
+
+    def JSDivLoss(self, y_out, y_true):
+
+        if type(y_true) is not Parameter:
+            y_true = Parameter(data=y_true, eval_grad=False)
+
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
+
+        pass
+
     def TestLoss(self, y_out):
 
         mbatch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
