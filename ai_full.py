@@ -902,7 +902,7 @@ class Loss:
         neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
         neg_one.w.fill(-1.0)  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
 
-        # L = -Summation(y_true*log(y_out))
+        # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
         l = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_out))), neg_one)
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = self.graph.divide(l, batch_size)
@@ -921,16 +921,6 @@ class Loss:
 
         pass
 
-    def KLDivLoss(self, y_out, y_true):
-
-        if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
-
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-        batch_size.w.fill(float(y_true.shape[-1]))
-
-        pass
-
     def JSDivLoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
@@ -939,7 +929,26 @@ class Loss:
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
         batch_size.w.fill(float(y_true.shape[-1]))
 
-        pass
+        two = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        two.w.fill(2.0)   # just a 2 :p
+
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one.w.fill(-1.0)  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
+
+        # mean probability: (P + Q)/2
+        y_mean = self.graph.divide(self.graph.add(y_out, y_true), two)
+        # KL(P || (P + Q)/2): Summation(P*log(P)){result: 0} - Summation(P*log((P+Q)/2))
+        kl_1 = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_mean))), neg_one)
+        # KL(Q || (P + Q)/2): Summation(Q*log(Q)) - Summation(Q*log((P+Q)/2))
+        kl_2 = self.graph.add(self.graph.multiply(y_out, self.graph.log(y_out)), self.graph.multiply(self.graph.multiply(y_out, self.graph.log(y_mean)), neg_one))   # !!!!!
+        # JS(P, Q) = 1/2*(KL(P || (P + Q)/2) + KL(Q || (P + Q)/2))
+        l = self.graph.divide(self.graph.add(kl_1, kl_2), two)
+        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+        l = self.graph.divide(l, batch_size)
+
+        l.dw[0, 0] = 1.0  # dl/dl = 1.0
+
+        return l
 
     def TestLoss(self, y_out):
 
