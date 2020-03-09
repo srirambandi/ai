@@ -614,15 +614,15 @@ G = ComputationalGraph()
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
 class Linear:
-    def __init__(self, hidden_prev = 0, hidden_next = 0, init_zeros=False, graph=G):
+    def __init__(self, hidden_prev=0, hidden_next=0, bias=True graph=G):
         self.hidden_prev = hidden_prev  # previous layer units
         self.hidden_next = hidden_next  # next layer units
-        self.init_zeros = init_zeros
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.hidden_next, self.hidden_prev), init_zeros=self.init_zeros)  # weight volume
+        self.W = Parameter((self.hidden_next, self.hidden_prev))  # weight volume
         self.b = Parameter((self.hidden_next, 1), init_zeros=True)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
@@ -639,14 +639,17 @@ class Linear:
             x = self.graph.reshape(x)
 
         # y = Wx + b
-        out = self.graph.add(self.graph.dot(self.W, x), self.b, axis=(1,))
+        out = self.graph.dot(self.W, x) # matmul
+
+        if self.bias:   # adding bias
+            out = self.graph.add(out, self.b, axis=(-1,))
 
         return out
 
 
 # convolutional neural network
 class Conv2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -661,6 +664,7 @@ class Conv2d:
         self.filter_size = (self.input_channels, *(self.kernel_size))
         self.stride = stride
         self.padding = padding
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
@@ -677,14 +681,18 @@ class Conv2d:
         if type(x) is not Parameter:
             x = Parameter(data=x, eval_grad=False)
 
-        out = self.graph.add(self.graph.conv2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convolution operation and adding bias
+        # convolution operation
+        out = self.graph.conv2d(x, self.K, self.stride, self.padding)
+
+        if self.bias:   # adding bias
+            out = self.graph.add(out, self.b, axis=(-3, -2, -1))
 
         return out
 
 
 # convolutional neural network
 class ConvTranspose2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -699,6 +707,7 @@ class ConvTranspose2d:
         self.filter_size = (self.output_channels, *(self.kernel_size))
         self.stride = stride
         self.padding = padding
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
@@ -715,7 +724,11 @@ class ConvTranspose2d:
         if type(x) is not Parameter:
             x = Parameter(data=x, eval_grad=False)
 
-        out = self.graph.add(self.graph.convtranspose2d(x, self.K, self.stride, self.padding), self.b, axis=(-3, -2, -1))     # convolution operation and adding bias
+        # convolution transpose operation
+        out = self.graph.convtranspose2d(x, self.K, self.stride, self.padding)
+
+        if self.bias:   # adding bias
+            out = self.graph.add(out, self.b, axis=(-3, -2, -1))
 
         return out
 
@@ -795,10 +808,11 @@ class RNN:
 
 
 class BatchNorm:
-    def __init__(self, hidden_shape, axis=-1, momentum=0.9, graph=G):
+    def __init__(self, hidden_shape, axis=-1, momentum=0.9, bias=True, graph=G):
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
         self.axis = axis    # along batch channel axis for conv layers and along batches for linear
         self.momentum = momentum
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
@@ -841,7 +855,10 @@ class BatchNorm:
             normalized = Parameter(data=normalized, eval_grad=False)
 
         # scale and shift
-        out = self.graph.add(self.graph.multiply(normalized, self.gamma, axis=(-1,)), self.beta, axis=(-1,))
+        out = self.graph.multiply(normalized, self.gamma, axis=(-1,))    # scale
+
+        if self.bias:   # shift
+            out = self.graph.add(out, self.beta, axis=(-1,))
 
         return out
 
