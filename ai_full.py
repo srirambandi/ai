@@ -862,6 +862,12 @@ class Loss:
             return self.MSELoss(y_out, y_true)
         elif self.loss_fn == 'CrossEntropyLoss':
             return self.CrossEntropyLoss(y_out, y_true)
+        elif self.loss_fn == 'BCELoss':
+            return self.BCELoss(y_out, y_true)
+        elif self.loss_fn == 'WassersteinDistance':
+            return self.WassersteinDistance(y_out, y_true)
+        elif self.loss_fn == 'JSDivLoss':
+            return self.JSDivLoss(y_out, y_true)
         elif self.loss_fn == 'TestLoss':
             return self.TestLoss(y_out)
         else:
@@ -904,6 +910,38 @@ class Loss:
 
         # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
         l = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_out))), neg_one)
+        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+        l = self.graph.divide(l, batch_size)
+
+        l.dw[0, 0] = 1.0  # dl/dl = 1.0
+
+        return l
+
+    def BCELoss(self, y_out, y_true):
+
+        if type(y_true) is not Parameter:
+            y_true = Parameter(data=y_true, eval_grad=False)
+
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size.w.fill(float(y_true.shape[-1]))
+
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one.w.fill(-1.0)  # just a -1 to make the l.dw look same in all the loss defs (dl/dl = 1)
+
+        one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        one.w.fill(1.0)
+
+        # class 2 output: 1 - c1
+        c2 = self.graph.multiply(self.graph.subtract(y_out, one), neg_one)
+        # class 2 target: 1 - t1
+        t2 = self.graph.multiply(self.graph.subtract(y_true, one), neg_one)
+
+        # -Summation(t1*log(c1))
+        l1 = self.graph.multiply(self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_out))), neg_one)
+        # -Summation((1 - t1)*log(1 - c1))
+        l2 = self.graph.multiply(self.graph.sum(self.graph.multiply(t2, self.graph.log(c2))), neg_one)
+        # loss = -Summation(t1*log(c1)) -Summation((1 - t1)*log(1 - c1))
+        l = self.graph.add(l1, l2)
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = self.graph.divide(l, batch_size)
 
