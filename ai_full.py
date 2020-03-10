@@ -881,8 +881,6 @@ class Loss:
             return self.CrossEntropyLoss(y_out, y_true)
         elif self.loss_fn == 'BCELoss':
             return self.BCELoss(y_out, y_true)
-        elif self.loss_fn == 'WassersteinDistance':
-            return self.WassersteinDistance(y_out, y_true)
         elif self.loss_fn == 'JSDivLoss':
             return self.JSDivLoss(y_out, y_true)
         elif self.loss_fn == 'TestLoss':
@@ -966,16 +964,6 @@ class Loss:
 
         return l
 
-    def WassersteinDistance(self, y_out, y_true):
-
-        if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
-
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
-        batch_size.w.fill(float(y_true.shape[-1]))
-
-        pass
-
     def JSDivLoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
@@ -1010,7 +998,8 @@ class Loss:
         mbatch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
         batch_size.w.fill(float(y_out.shape[-1]))
 
-        # a test loss score function that measures the sum of each output vector as the loss of that sample
+        # a test loss score function that measures the sum of elements of each output vector as the loss of that sample
+        # helps identify leaks in between samples in a batch
         l = self.graph.sum(y_out)
         l = self.graph.divide(l, batch_size)
 
