@@ -593,7 +593,7 @@ class ComputationalGraph:
         if new_shape == None:   # flatten
             new_shape = x.w.reshape(-1, batch_size).shape
         else:
-            new_shape = tuple(*new_shape, batch_size)
+            new_shape = (*new_shape, batch_size)
         out = Parameter(new_shape, init_zeros=True)
         out.w = x.w.reshape(new_shape)
 
