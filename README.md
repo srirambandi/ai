@@ -17,3 +17,6 @@ I will keep updating the library with more explanations, documentation and a sim
 I want to be able to implement every model in the below Deep Learning Toolkit picture [source tweet](https://twitter.com/OriolVinyalsML/status/1212422497339105280?s=20)
 
 ![DL Toolkit](/assets/dl_toolbox.jpeg)
+
+# Author
+Sri Ram Bandi / [@\_srirambandi\_](https://twitter.com/_srirambandi_)
