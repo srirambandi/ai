@@ -312,7 +312,7 @@ class ComputationalGraph:
 
         return output_feature_maps
 
-    def convtranspose2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution transpose operation
+    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         fi = K.shape[0]     # number of filters - here number of feature input planes
@@ -320,7 +320,7 @@ class ComputationalGraph:
         k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
-        output_shape = tuple((map(lambda i, k, s, p: int((i - 1)*s + k - 2*p), i, k, s, p))) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
+        output_shape = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a))) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
         pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_shape, p)), batch)   # padded input feature maps shape - (filters, new_i, new_j, batch_size)
 
         out = np.zeros(pad_output_img_shape)  # output feature maps
@@ -695,7 +695,7 @@ class Conv2d:
 
 # convolutional neural network
 class ConvTranspose2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), a=(0, 0) bias=True, graph=G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -705,11 +705,14 @@ class ConvTranspose2d:
             stride = (stride, stride)
         if type(padding) is not tuple:
             padding = (padding, padding)
+        if type(a) is not tuple:
+            a = (a, a)
 
         self.kernel_size = kernel_size
         self.filter_size = (self.output_channels, *(self.kernel_size))
         self.stride = stride
         self.padding = padding
+        self.a = a
         self.bias = bias
         self.graph = graph
         self.init_params()
@@ -728,7 +731,7 @@ class ConvTranspose2d:
             x = Parameter(data=x, eval_grad=False)
 
         # convolution transpose operation
-        out = self.graph.convtranspose2d(x, self.K, self.stride, self.padding)
+        out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.a)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))
