@@ -839,6 +839,7 @@ class BatchNorm:
             x = Parameter(data=x, eval_grad=False)
 
         if self.graph.grad_mode:    # training
+            # useful: https://arxiv.org/abs/1502.03167
 
             batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size/channel size
             batch_size.w.fill(float(x.shape[self.axis]))
