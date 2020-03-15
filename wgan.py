@@ -29,7 +29,25 @@ class Generator(ai.Model):
 
 class Descriminator(ai.Model):
     def __init__(self):
-        pass
 
-    def forward(self, x):
-        pass
+        self.d_conv1 = ai.Conv2d(1, 64, kernel_size=5, stride=2, padding=2, graph=D_graph)
+        self.d_conv2 = ai.Conv2d(64, 2*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
+        self.d_bn1 = ai.BatchNorm((2*64, 7, 7))
+        self.d_conv3 = ai.Conv2d(2*64, 3*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
+        self.d_bn2 = ai.BatchNorm((3*64, 4, 4))
+        self.d_conv4 = ai.Conv2d(3*64, 4*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
+        self.d_bn3 = ai.BatchNorm((4*64, 2, 2))
+        self.d_fc = ai.Linear(1024, 1)
+
+        self.layers = [self.d_conv1, self.d_conv2, self.d_bn1, self.d_conv3, self.d_bn2,
+                        self.d_conv4, self.d_bn3, self.d_fc]
+
+    def forward(self, image):
+
+        o1 = ai.D_graph.lrelu(self.d_conv1(image))
+        o2 = ai.D_graph.lrelu(self.d_bn1(self.d_conv2(o1)))
+        o3 = ai.D_graph.lrelu(self.d_bn2(self.d_conv3(o2)))
+        o4 = ai.D_graph.lrelu(self.d_bn3(self.d_conv4(o3)))
+        o5 = self.d_fc(o4)
+
+        return o5
