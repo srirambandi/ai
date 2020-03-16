@@ -4,13 +4,16 @@ import numpy as np
 
 class Generator(ai.Model):
     def __init__(self):
-        self.fc1 = ai.Linear(100, 3 * 3 * 384)
-        self.convt1 = ai.ConvTranspose2d(384, 192, kernel_size=5, stride=1, padding=0)
-        self.bn1 = ai.BatchNorm((192, 7, 7))
-        self.convt2 = ai.ConvTranspose2d(192, 96, kernel_size=5, stride=2, padding=2, a=1)
-        self.bn2 = ai.BatchNorm((96, 14, 14))
-        self.convt3 = ai.ConvTranspose2d(96, 1, kernel_size=5, stride=2, padding=2, a=1)
-        self.layers = [self.fc1, self.convt1, self.bn1, self.convt2, self.bn2, self.convt3]
+
+        self.g_fc = ai.Linear(z_dim, 8*gf_dim * 2 * 2)
+        self.g_bn1 = ai.BatchNorm((8*gf_dim, 2, 2))
+        self.g_deconv1 = ai.ConvTranspose2d(8*gf_dim, 4*gf_dim, kernel_size=5, stride=2, padding=2, a=1)
+        self.g_bn2 = ai.BatchNorm((4*gf_dim, 4, 4))
+        self.g_deconv2 = ai.ConvTranspose2d(4*gf_dim, 2*gf_dim, kernel_size=5, stride=2, padding=2, a=0)
+        self.g_bn3 = ai.BatchNorm((2*gf_dim, 7, 7))
+        self.g_deconv3 = ai.ConvTranspose2d(2*gf_dim, gf_dim, kernel_size=5, stride=2, padding=2, a=1)
+        self.g_bn4 = ai.BatchNorm((gf_dim, 14, 14))
+        self.g_deconv4 = ai.ConvTranspose2d(gf_dim, 1, kernel_size=5, stride=2, padding=2, a=1)
 
     def forward(self, z):
 
