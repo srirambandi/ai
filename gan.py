@@ -25,17 +25,19 @@ class Generator(ai.Model):
         self.g_bn4 = ai.BatchNorm((gf_dim, 14, 14))
         self.g_deconv4 = ai.ConvTranspose2d(gf_dim, 1, kernel_size=5, stride=2, padding=2, a=1)
 
+        self.layers = [self.g_fc, self.g_bn1, self.g_deconv1, self.g_bn2, self.g_deconv2, self.g_bn3,
+                        self.g_deconv3, self.g_bn4, self.g_deconv4]
+
     def forward(self, z):
 
-        o1 = ai.G_graph.relu(self.g_fc(z))
-        o1 = ai.G_graph.reshape(o1, (8*gf_dim, 2, 2))
-        o2 = ai.G_graph.relu(self.convt1(o1))
-        o2 = self.g_bn1(o2)
-        o3 = ai.G_graph.relu(self.convt2(o2))
-        o3 = self.g_bn2(o3)
-        o4 = ai.G_graph.tanh(self.convt3(o3))
+        o1 = ai.G_graph.reshape(self.g_fc(z), (8*gf_dim, 2, 2))
+        o2 = ai.G_graph.relu(self.g_bn1(o1))
+        o3 = ai.G_graph.relu(self.g_bn2(self.g_deconv1(o2)))
+        o4 = ai.G_graph.relu(self.g_bn3(self.g_deconv2(o3)))
+        o5 = ai.G_graph.relu(self.g_bn4(self.g_deconv3(o4)))
+        o6 = ai.G_graph.tanh(self.g_deconv4(o5))
 
-        return o4
+        return o6
 
 class Descriminator(ai.Model):
     def __init__(self):
