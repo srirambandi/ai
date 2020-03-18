@@ -1,9 +1,6 @@
 import ai_full as ai
 import numpy as np
 
-batch_size = 1
-latent_size = 100
-
 
 G_graph = ai.ComputationalGraph()
 D_graph = ai.ComputationalGraph()
@@ -11,6 +8,15 @@ D_graph = ai.ComputationalGraph()
 z_dim = 100
 gf_dim = 64
 df_dim = 64
+
+
+def load_data(file):
+    dict = np.load(file, allow_pickle=True)
+    return dict
+
+train_file = 'mnist/train.npy'
+test_file = 'mnist/test.npy'
+
 
 class Generator(ai.Model):
     def __init__(self):
@@ -35,9 +41,9 @@ class Generator(ai.Model):
         o3 = ai.G_graph.relu(self.g_bn2(self.g_deconv1(o2)))
         o4 = ai.G_graph.relu(self.g_bn3(self.g_deconv2(o3)))
         o5 = ai.G_graph.relu(self.g_bn4(self.g_deconv3(o4)))
-        o6 = ai.G_graph.tanh(self.g_deconv4(o5))
+        fake_image = ai.G_graph.tanh(self.g_deconv4(o5))
 
-        return o6
+        return fake_image
 
 class Descriminator(ai.Model):
     def __init__(self):
@@ -51,7 +57,7 @@ class Descriminator(ai.Model):
         self.d_bn3 = ai.BatchNorm((4*64, 2, 2))
         self.d_fc = ai.Linear(1024, 1)
 
-        self.layers = [self.d_conv1, self.d_conv2, self.d_bn1, self.d_conv3, self.d_bn2,
+        self.layers = [self.d_conv1, selfs.d_conv2, self.d_bn1, self.d_conv3, self.d_bn2,
                         self.d_conv4, self.d_bn3, self.d_fc]
 
     def forward(self, image):
@@ -63,3 +69,13 @@ class Descriminator(ai.Model):
         o5 = self.d_fc(o4)
 
         return ai.D_graph.sigmoid(o5)
+
+
+generator = Generator()
+desciminator = Descriminator()
+
+
+g_loss = ai.Loss(loss_fn='BCELoss')
+d_loss = ai.Loss(loss_fn='BCELoss')
+g_optim = ai.Optimizer(generator.layers, optim_fn='Adam', lr=alpha)
+d_optim = ai.Optimizer(desciminator.layers, optim_fn='Adam', lr=alpha)

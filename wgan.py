@@ -2,6 +2,14 @@ import ai_full as ai
 import numpy as np
 
 
+G_graph = ai.ComputationalGraph()
+D_graph = ai.ComputationalGraph()
+
+z_dim = 100
+gf_dim = 64
+df_dim = 64
+
+
 class Generator(ai.Model):
     def __init__(self):
 
@@ -22,9 +30,9 @@ class Generator(ai.Model):
         o3 = ai.G_graph.relu(self.g_bn2(self.g_deconv1(o2)))
         o4 = ai.G_graph.relu(self.g_bn3(self.g_deconv2(o3)))
         o5 = ai.G_graph.relu(self.g_bn4(self.g_deconv3(o4)))
-        o6 = ai.G_graph.tanh(self.g_deconv4(o5))
+        fake_image = ai.G_graph.tanh(self.g_deconv4(o5))
 
-        return o6
+        return fake_image
 
 class Descriminator(ai.Model):
     def __init__(self):
@@ -50,3 +58,7 @@ class Descriminator(ai.Model):
         o5 = self.d_fc(o4)
 
         return o5
+
+
+generator = Generator()
+desciminator = Descriminator()
