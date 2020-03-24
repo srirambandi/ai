@@ -9,13 +9,19 @@ z_dim = 100
 gf_dim = 64
 df_dim = 64
 
+m = 8   # batch size
+k = 1   # number of desciminator updates per generator update
 
-def load_data(file):
-    dict = np.load(file, allow_pickle=True)
-    return dict
 
-train_file = 'mnist/train.npy'
-test_file = 'mnist/test.npy'
+def data_generator(file):
+
+    train_dict = np.load('mnist/train.npy', allow_pickle=True)
+    test_dict = np.load('mnist/test.npy', allow_pickle=True)
+    data = np.concatenate([train_dict.item()['data'], test_dict.item()['data']])
+
+    while True:
+        for batch in range(int(data.shape[0] / m)):
+            yield data[batch * m:(batch + 1) * m]
 
 
 class Generator(ai.Model):
@@ -79,3 +85,25 @@ g_loss = ai.Loss(loss_fn='BCELoss')
 d_loss = ai.Loss(loss_fn='BCELoss')
 g_optim = ai.Optimizer(generator.layers, optim_fn='Adam', lr=alpha)
 d_optim = ai.Optimizer(desciminator.layers, optim_fn='Adam', lr=alpha)
+
+
+it, epoch = 0, 0
+loss = np.inf
+
+
+while epoch < 1:
+
+    epoch += 1
+    it = 0
+
+    for _ in range(k):
+
+        pass
+
+    pass
+
+
+    print('\n\n', 'Epoch {} completed. Accuracy: {}'.format(epoch, evaluate()))
+
+
+model.save()
