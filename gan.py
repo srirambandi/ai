@@ -9,11 +9,7 @@ z_dim = 100
 gf_dim = 64
 df_dim = 64
 
-m = 8   # batch size
-k = 1   # number of desciminator updates per generator update
-
-
-def data_generator(file):
+def data_generator(m):
 
     train_dict = np.load('mnist/train.npy', allow_pickle=True)
     test_dict = np.load('mnist/test.npy', allow_pickle=True)
@@ -81,15 +77,17 @@ generator = Generator()
 desciminator = Descriminator()
 
 
-g_loss = ai.Loss(loss_fn='BCELoss')
-d_loss = ai.Loss(loss_fn='BCELoss')
-g_optim = ai.Optimizer(generator.layers, optim_fn='Adam', lr=alpha)
-d_optim = ai.Optimizer(desciminator.layers, optim_fn='Adam', lr=alpha)
+L = ai.Loss(loss_fn='BCELoss', graph=D_graph)
+g_optim = ai.Optimizer(generator.layers, optim_fn='Adam', lr=alpha, graph=G_graph)
+d_optim = ai.Optimizer(desciminator.layers, optim_fn='Adam', lr=alpha, graph=D_graph)
 
 
 it, epoch = 0, 0
 loss = np.inf
 
+m = 8   # batch size
+k = 1   # number of desciminator updates per generator update
+data = data_generator(m)
 
 while epoch < 1:
 
@@ -98,9 +96,45 @@ while epoch < 1:
 
     for _ in range(k):
 
-        pass
+        real_images = data.__next__()
+        real_labels = np.ones((1, m))
 
-    pass
+        real_probs = desciminator.forward(real_images)
+        d_loss_real = L.loss(real_probs, real_labels)
+
+
+        G_graph.grad_mode = False
+
+        z = np.random.randn(z_dim, m)
+        fake_images = generator.forward(z)
+        fake_labels =  np.zeros((1, m))
+
+        fake_probs = desciminator.forward(fake_images)
+        d_loss_fake = L.loss(fake_probs, fake_labels)
+
+        G_graph.grad_mode = True
+
+
+        d_loss = ai.D_graph.add(d_loss_real, d_loss_fake)
+        d_loss.dw = 0
+
+        D_graph.backward()
+        d_optim.step()
+        d_optim.zero_grad()
+
+
+    z = np.random.randn(z_dim, m)
+    fake_images = generator.forward(z)
+    fake_labels =  np.ones((1, m))
+
+    fake_probs = desciminator.forward(fake_images)
+    g_loss = L.loss(fake_probs, fake_labels)
+
+    D_graph.backward()
+    G_graph.backward()
+    g_optim.step()
+    g_optim.zero_grad()
+    d_optim.zero_grad()
 
 
     print('\n\n', 'Epoch {} completed. Accuracy: {}'.format(epoch, evaluate()))
