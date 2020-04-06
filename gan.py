@@ -23,15 +23,15 @@ def data_generator(m):
 class Generator(ai.Model):
     def __init__(self):
 
-        self.g_fc = ai.Linear(z_dim, 8*gf_dim * 2 * 2)
-        self.g_bn1 = ai.BatchNorm((8*gf_dim, 2, 2))
-        self.g_deconv1 = ai.ConvTranspose2d(8*gf_dim, 4*gf_dim, kernel_size=5, stride=2, padding=2, a=1)
-        self.g_bn2 = ai.BatchNorm((4*gf_dim, 4, 4))
-        self.g_deconv2 = ai.ConvTranspose2d(4*gf_dim, 2*gf_dim, kernel_size=5, stride=2, padding=2, a=0)
-        self.g_bn3 = ai.BatchNorm((2*gf_dim, 7, 7))
-        self.g_deconv3 = ai.ConvTranspose2d(2*gf_dim, gf_dim, kernel_size=5, stride=2, padding=2, a=1)
-        self.g_bn4 = ai.BatchNorm((gf_dim, 14, 14))
-        self.g_deconv4 = ai.ConvTranspose2d(gf_dim, 1, kernel_size=5, stride=2, padding=2, a=1)
+        self.g_fc = ai.Linear(z_dim, 8*gf_dim * 2 * 2, graph=G_graph)
+        self.g_bn1 = ai.BatchNorm((8*gf_dim, 2, 2), graph=G_graph)
+        self.g_deconv1 = ai.ConvTranspose2d(8*gf_dim, 4*gf_dim, kernel_size=5, stride=2, padding=2, a=1, graph=G_graph)
+        self.g_bn2 = ai.BatchNorm((4*gf_dim, 4, 4), graph=G_graph)
+        self.g_deconv2 = ai.ConvTranspose2d(4*gf_dim, 2*gf_dim, kernel_size=5, stride=2, padding=2, a=0, graph=G_graph)
+        self.g_bn3 = ai.BatchNorm((2*gf_dim, 7, 7), graph=G_graph)
+        self.g_deconv3 = ai.ConvTranspose2d(2*gf_dim, gf_dim, kernel_size=5, stride=2, padding=2, a=1, graph=G_graph)
+        self.g_bn4 = ai.BatchNorm((gf_dim, 14, 14), graph=G_graph)
+        self.g_deconv4 = ai.ConvTranspose2d(gf_dim, 1, kernel_size=5, stride=2, padding=2, a=1, graph=G_graph)
 
         self.layers = [self.g_fc, self.g_bn1, self.g_deconv1, self.g_bn2, self.g_deconv2, self.g_bn3,
                         self.g_deconv3, self.g_bn4, self.g_deconv4]
@@ -52,12 +52,12 @@ class Descriminator(ai.Model):
 
         self.d_conv1 = ai.Conv2d(1, 64, kernel_size=5, stride=2, padding=2, graph=D_graph)
         self.d_conv2 = ai.Conv2d(64, 2*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
-        self.d_bn1 = ai.BatchNorm((2*64, 7, 7))
+        self.d_bn1 = ai.BatchNorm((2*64, 7, 7), graph=D_graph)
         self.d_conv3 = ai.Conv2d(2*64, 3*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
-        self.d_bn2 = ai.BatchNorm((3*64, 4, 4))
+        self.d_bn2 = ai.BatchNorm((3*64, 4, 4), graph=D_graph)
         self.d_conv4 = ai.Conv2d(3*64, 4*64, kernel_size=5, stride=2, padding=2, graph=D_graph)
-        self.d_bn3 = ai.BatchNorm((4*64, 2, 2))
-        self.d_fc = ai.Linear(1024, 1)
+        self.d_bn3 = ai.BatchNorm((4*64, 2, 2), graph=D_graph)
+        self.d_fc = ai.Linear(1024, 1, graph=D_graph)
 
         self.layers = [self.d_conv1, selfs.d_conv2, self.d_bn1, self.d_conv3, self.d_bn2,
                         self.d_conv4, self.d_bn3, self.d_fc]
@@ -74,20 +74,30 @@ class Descriminator(ai.Model):
 
 
 generator = Generator()
-desciminator = Descriminator()
+descriminator = Descriminator()
 
 
 L = ai.Loss(loss_fn='BCELoss', graph=D_graph)
 g_optim = ai.Optimizer(generator.layers, optim_fn='Adam', lr=alpha, graph=G_graph)
-d_optim = ai.Optimizer(desciminator.layers, optim_fn='Adam', lr=alpha, graph=D_graph)
+d_optim = ai.Optimizer(descriminator.layers, optim_fn='Adam', lr=alpha, graph=D_graph)
 
 
 it, epoch = 0, 0
 loss = np.inf
 
 m = 8   # batch size
-k = 1   # number of desciminator updates per generator update
+k = 1   # number of descriminator updates per generator update
 data = data_generator(m)
+
+
+def evaluate():
+    G_graph.grad_mode = False
+
+    z = np.random.randn(z_dim, m)
+    fake_images = generator.forward(z)
+
+    G_graph.grad_mode = True
+
 
 while epoch < 1:
 
@@ -99,7 +109,7 @@ while epoch < 1:
         real_images = data.__next__()
         real_labels = np.ones((1, m))
 
-        real_probs = desciminator.forward(real_images)
+        real_probs = descriminator.forward(real_images)
         d_loss_real = L.loss(real_probs, real_labels)
 
 
@@ -109,7 +119,7 @@ while epoch < 1:
         fake_images = generator.forward(z)
         fake_labels =  np.zeros((1, m))
 
-        fake_probs = desciminator.forward(fake_images)
+        fake_probs = descriminator.forward(fake_images)
         d_loss_fake = L.loss(fake_probs, fake_labels)
 
         G_graph.grad_mode = True
@@ -127,7 +137,7 @@ while epoch < 1:
     fake_images = generator.forward(z)
     fake_labels =  np.ones((1, m))
 
-    fake_probs = desciminator.forward(fake_images)
+    fake_probs = descriminator.forward(fake_images)
     g_loss = L.loss(fake_probs, fake_labels)
 
     D_graph.backward()
