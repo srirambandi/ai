@@ -58,7 +58,7 @@ def evaluate():
         output = np.array(outputs[batch * test_m : (batch + 1) * test_m])
 
         scores = model.forward(input)
-        preds = np.argmax(scores.w, axis=0)
+        preds = np.argmax(scores.data, axis=0)
 
         correct += np.sum(np.equal(output, preds))
         total += test_m
@@ -85,7 +85,7 @@ while epoch < 10:
 
         scores = model.forward(input)
 
-        loss = L.loss(scores, onehot).w[0][0]
+        loss = L.loss(scores, onehot).data[0][0]
         L.backward()
 
         optim.step()        # update parameters with optimization functions

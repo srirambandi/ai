@@ -1,4 +1,4 @@
-import ai
+import ai_full as ai
 import numpy as np
 
 # @karpathy 's min-char-rnn input trained with rnn
@@ -51,7 +51,7 @@ def sample_chars(h, seed_ix, n):
     ai.G.grad_mode = False
     for seq in range(n):
         o, h = model.forward([x], h)
-        ix = np.random.choice(range(vocab_size), p=o[0].w.ravel())
+        ix = np.random.choice(range(vocab_size), p=o[0].data.ravel())
         x = np.zeros((vocab_size, 1))
         x[ix] = 1
         chars.append(ix_to_char[ix])
@@ -77,20 +77,22 @@ while True:
         y[i][targets[i]] = 1
 
     scores, h = model.forward(x, h)
-    loss = L.loss(scores, y)
+    loss = []
+    for out, true in zip(scores, y):
+        loss.append(L.loss(out, true))
     L.backward()
 
     optim.step()        # update parameters with optimization functions
     optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
     if it%100 == 0:
-        curr_loss = sum([loss[i].w[0][0] for i in range(seq_length)])
-        # if smooth_loss == 0:
-        #     smooth_loss = curr_loss
-        # smooth_loss = smooth_loss*0.999 + curr_loss*0.001
-        print('Loss: iter', it, curr_loss)
-        # txt = ''.join(sample_chars(h, inputs[0], 500))
-        # print('----\n %s \n----' % (txt, ))
+        curr_loss = sum([loss[i].data[0][0] for i in range(seq_length)])
+        if smooth_loss == 0:
+            smooth_loss = curr_loss
+        smooth_loss = smooth_loss*0.99 + curr_loss*0.01
+        print('Loss: iter', it, smooth_loss)
+        txt = ''.join(sample_chars(h, inputs[0], 500))
+        print('----\n %s \n----' % (txt, ))
 
         if it == 20000:
             model.save()

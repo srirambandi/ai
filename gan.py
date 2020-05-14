@@ -126,7 +126,7 @@ while epoch < 1:
 
 
         d_loss = ai.D_graph.add(d_loss_real, d_loss_fake)
-        d_loss.dw = 0
+        d_loss.grad = 0
 
         D_graph.backward()
         d_optim.step()

@@ -620,7 +620,7 @@ G = ComputationalGraph()
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
 class Linear:
-    def __init__(self, hidden_prev=0, hidden_next=0, bias=True graph=G):
+    def __init__(self, hidden_prev=0, hidden_next=0, bias=True, graph=G):
         self.hidden_prev = hidden_prev  # previous layer units
         self.hidden_next = hidden_next  # next layer units
         self.bias = bias
@@ -698,7 +698,7 @@ class Conv2d:
 
 # convolutional neural network
 class ConvTranspose2d:
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), a=(0, 0) bias=True, graph=G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), a=(0, 0), bias=True, graph=G):
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -1202,6 +1202,7 @@ class Model:
 
     def load(self, file=None):  # model.load() - loads the state of net from a file
         print('loading model from', file)
+        
         if file == None:
             file = self.__class__.__name__+'.npy'
 
