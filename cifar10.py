@@ -98,7 +98,7 @@ while loss > 0.1:
             scores = model.forward(input)
 
             loss = L.loss(scores, onehot).data[0][0]
-            L.backward()
+            loss.backward()
 
             optim.step()        # update parameters with optimization functions
             optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero

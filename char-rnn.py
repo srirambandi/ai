@@ -80,7 +80,7 @@ while True:
     loss = []
     for out, true in zip(scores, y):
         loss.append(L.loss(out, true))
-    L.backward()
+    loss[-1].backward()
 
     optim.step()        # update parameters with optimization functions
     optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero

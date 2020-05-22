@@ -11,7 +11,7 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True,
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, graph=G,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
@@ -20,6 +20,7 @@ class Parameter:
         self.shape = shape
         self.data = data
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
+        self.graph = graph # graph object this parameter belongs to
 
         # constant initializations
         self.init_zeros = init_zeros
@@ -66,6 +67,13 @@ class Parameter:
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)
 
+    # this function when called computes the gradients of the model parameters
+    # by executing the backprop operations in reverse order to the forward propagation;
+    # the gradients are computed with chain rule
+    def backward(self):
+        for backprop_op in reversed(self.graph.backprop):
+            backprop_op()
+
     # transpose
     def T(self):
 
@@ -83,18 +91,10 @@ class ComputationalGraph:
         self.grad_mode = grad_mode
         self.backprop = []
 
-    # this function when called computes the gradients of the model parameters
-    # by executing the backprop operations in reverse order to the forward propagation;
-    # the gradients are computed with chain rule
-    def backward(self):
-        for backprop_op in reversed(self.backprop):
-            backprop_op()
-
-
     # operations required for deep learning models and their backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
         shape = (W.data.shape[0], x.data.shape[1])
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.dot(W.data, x.data)
 
         if self.grad_mode:
@@ -115,7 +115,7 @@ class ComputationalGraph:
     def add(self, x, y, axis=()):    # element wise addition
         # bias should be passed in position of y
         shape = x.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.add(x.data, y.data)
 
         if self.grad_mode:
@@ -134,7 +134,7 @@ class ComputationalGraph:
 
     def subtract(self, x, y, axis=()):   # element wise subtraction
         shape = x.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.subtract(x.data, y.data)
 
         if self.grad_mode:
@@ -154,7 +154,7 @@ class ComputationalGraph:
     def multiply(self, x, y, axis=()):   # element wise vector multiplication
         # not for scalar multiply
         shape = x.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.multiply(x.data, y.data)
 
         if self.grad_mode:
@@ -173,7 +173,7 @@ class ComputationalGraph:
 
     def divide(self, x, y, axis=()):   # element wise vector division
         shape = x.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.divide(x.data, y.data)
 
         if self.grad_mode:
@@ -195,7 +195,7 @@ class ComputationalGraph:
             res = np.sum(h.data).reshape(1, 1)
         else:
             res = np.sum(h.data, axis=axis, keepdims=True)
-        out = Parameter(res.shape, init_zeros=True)
+        out = Parameter(res.shape, init_zeros=True, graph=self)
         out.data = res
 
         if self.grad_mode:
@@ -211,7 +211,7 @@ class ComputationalGraph:
         return out
 
     def power(self, h, power):   # power of all elements in the matrix
-        out = Parameter(h.shape, init_zeros=True)
+        out = Parameter(h.shape, init_zeros=True, graph=self)
         out.data = np.power(h.data, power) if power >= 0 else np.power(h.data, power) + 1e-6     # numerical stability for -ve power
 
         if self.grad_mode:
@@ -228,7 +228,7 @@ class ComputationalGraph:
 
     def log(self, h):   # element wise log
         shape = h.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.log(h.data)
 
         if self.grad_mode:
@@ -274,7 +274,7 @@ class ComputationalGraph:
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
                 out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
-        output_feature_maps = Parameter(out.shape, init_zeros=True)
+        output_feature_maps = Parameter(out.shape, init_zeros=True, graph=self)
         output_feature_maps.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
 
         if self.grad_mode:
@@ -342,7 +342,7 @@ class ComputationalGraph:
         # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
         out = out[:, p[0]:out.shape[1]-p[0], p[1]:out.shape[2]-p[1], :]
 
-        output_image = Parameter(out.shape, init_zeros=True)
+        output_image = Parameter(out.shape, init_zeros=True, graph=self)
         output_image.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
 
         if self.grad_mode:
@@ -412,7 +412,7 @@ class ComputationalGraph:
                     pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
                     out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
-        pool_maps = Parameter(out.shape, init_zeros=True)
+        pool_maps = Parameter(out.shape, init_zeros=True, graph=self)
         pool_maps.data = out
 
         if self.grad_mode:
@@ -448,7 +448,7 @@ class ComputationalGraph:
         # units are always present
         else:
             dropout_mask = p
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = dropout_mask*x.data    # drop/sclae
 
         if self.grad_mode:
@@ -466,7 +466,7 @@ class ComputationalGraph:
     # hidden and output units activations
     def relu(self, z):      # element wise ReLU activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.maximum(z.data, 0)
 
         if self.grad_mode:
@@ -484,7 +484,7 @@ class ComputationalGraph:
 
     def lrelu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.maximum(z.data, alpha * z.data)
 
         if self.grad_mode:
@@ -502,7 +502,7 @@ class ComputationalGraph:
 
     def sigmoid(self, z):   # element wise sigmoid activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = 1.0/(1.0 + np.exp(-1.0*z.data))
 
         if self.grad_mode:
@@ -519,7 +519,7 @@ class ComputationalGraph:
 
     def softmax(self, z):   # calculates probs for the unnormalized log probabilities of previous layer
         shape = z.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.exp(z.data - np.max(z.data)) / np.sum(np.exp(z.data - np.max(z.data)), axis=0).reshape(1, -1)
 
         if self.grad_mode:
@@ -537,7 +537,7 @@ class ComputationalGraph:
 
     def tanh(self, z):      # element wise tanh activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.tanh(z.data)
 
         if self.grad_mode:
@@ -557,7 +557,7 @@ class ComputationalGraph:
         outs = np.split(W.data, sections, axis=axis)
         outs_param = []
         for e in outs:
-            o = Parameter(e.shape, init_zeros=True)
+            o = Parameter(e.shape, init_zeros=True, graph=self)
             o.data = e
             outs_param.append(o)
 
@@ -574,7 +574,7 @@ class ComputationalGraph:
 
     def T(self, x):     # transpose
         shape = tuple(reversed(x.shape))
-        out = Parameter(shape, init_zeros=True)
+        out = Parameter(shape, init_zeros=True, graph=self)
         out.data = x.data.T
 
         if self.grad_mode:
@@ -597,7 +597,7 @@ class ComputationalGraph:
             new_shape = x.data.reshape(-1, batch_size).shape
         else:
             new_shape = (*new_shape, batch_size)
-        out = Parameter(new_shape, init_zeros=True)
+        out = Parameter(new_shape, init_zeros=True, graph=self)
         out.data = x.data.reshape(new_shape)
 
         if self.grad_mode:
@@ -628,8 +628,8 @@ class Linear:
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.hidden_next, self.hidden_prev))  # weight volume
-        self.b = Parameter((self.hidden_next, 1), init_zeros=True)   # bias vector
+        self.W = Parameter((self.hidden_next, self.hidden_prev), graph=self.graph)  # weight volume
+        self.b = Parameter((self.hidden_next, 1), init_zeros=True, graph=self.graph)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
     def __call__(self, x):  # easy callable
@@ -638,7 +638,7 @@ class Linear:
     def forward(self, x):
         # making the input compatible with graph operations
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # flatten the input if it came from layers like Conv2d
         if len(x.shape) > 2:
@@ -675,8 +675,8 @@ class Conv2d:
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.output_channels, *self.filter_size))
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True)
+        self.K = Parameter((self.output_channels, *self.filter_size), graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.K, self.b]
 
     def __call__(self, x):  # easy callable
@@ -685,7 +685,7 @@ class Conv2d:
     def forward(self, x):
 
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution operation
         out = self.graph.conv2d(x, self.K, self.stride, self.padding)
@@ -721,8 +721,8 @@ class ConvTranspose2d:
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.input_channels, *self.filter_size))
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True)
+        self.K = Parameter((self.input_channels, *self.filter_size), graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.K, self.b]
 
     def __call__(self, x):  # easy callable
@@ -731,7 +731,7 @@ class ConvTranspose2d:
     def forward(self, x):
 
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution transpose operation
         out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.a)
@@ -751,10 +751,10 @@ class LSTM:
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((4*self.hidden_size, self.input_size))    # input to hidden weight volume
-        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size))   # hidden to hidden weight volume
-        self.b_ih = Parameter((4*self.hidden_size, 1))  # input to hidden bias vector
-        self.b_hh = Parameter((4*self.hidden_size, 1))  # hidden to hidden bias vector
+        self.W_ih = Parameter((4*self.hidden_size, self.input_size), graph=self.graph)    # input to hidden weight volume
+        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), graph=self.graph)   # hidden to hidden weight volume
+        self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
+        self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
         self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
 
     def __call__(self, x, hidden):  # easy callable
@@ -765,7 +765,7 @@ class LSTM:
         h, c = hidden
 
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
 
         gates = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.b_hh, axis=(-1,)), self.graph.add(self.graph.dot(self.W_ih, x), self.b_ih, axis=(-1,)))
@@ -794,10 +794,10 @@ class RNN:
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((self.hidden_size, self.input_size))
-        self.W_hh = Parameter((self.hidden_size, self.hidden_size))
+        self.W_ih = Parameter((self.hidden_size, self.input_size), graph=self.graph)
+        self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
         # self.b_ih = Parameter((self.hidden_size, 1), init_zeros=True)    # not much use
-        self.b_hh = Parameter((self.hidden_size, 1), init_zeros=True)
+        self.b_hh = Parameter((self.hidden_size, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.W_ih, self.W_hh, self.b_hh]
 
     def __call__(self, x, hidden):  # easy callable
@@ -808,7 +808,7 @@ class RNN:
         h = hidden
 
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         h = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.graph.dot(self.W_ih, x)), self.b_hh, axis=(-1,))
         h = self.graph.tanh(h)
@@ -827,8 +827,8 @@ class BatchNorm:
 
     def init_params(self):
         shape = (*self.hidden_shape, 1)
-        self.gamma = Parameter(shape, init_ones=True)
-        self.beta = Parameter(shape, init_zeros=True)
+        self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
+        self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
         self.parameters = [self.gamma, self.beta]
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
@@ -839,12 +839,12 @@ class BatchNorm:
     def forward(self, x):
 
         if type(x) is not Parameter:
-            x = Parameter(data=x, eval_grad=False)
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         if self.graph.grad_mode:    # training
             # useful: https://arxiv.org/abs/1502.03167
 
-            batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size/channel size
+            batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size/channel size
             batch_size.data.fill(float(x.shape[self.axis]))
 
             # calculate mean and variance
@@ -862,7 +862,7 @@ class BatchNorm:
 
             centered = np.subtract(x.data, self.m)
             normalized = np.multiply(centered, np.power(self.v + 1e-6, -0.5))
-            normalized = Parameter(data=normalized, eval_grad=False)
+            normalized = Parameter(data=normalized, eval_grad=False, graph=self.graph)
 
         # scale and shift
         out = self.graph.multiply(normalized, self.gamma, axis=(-1,))    # scale
@@ -900,17 +900,12 @@ class Loss:
           import sys
           sys.exit()
 
-    # backprop is called here, computes gradients of the parameters
-    # Loss and Computational Graph can call the back propagation
-    def backward(self):
-        self.graph.backward()
-
     def MSELoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
+            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[-1]))
 
         # L = (y_out - y_true)^2
@@ -925,12 +920,12 @@ class Loss:
     def CrossEntropyLoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
+            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[-1]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
@@ -945,15 +940,15 @@ class Loss:
     def BCELoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
+            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[-1]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
-        one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
         one.data.fill(1.0)
 
         # class 2 output: 1 - c1
@@ -977,15 +972,15 @@ class Loss:
     def JSDivLoss(self, y_out, y_true):
 
         if type(y_true) is not Parameter:
-            y_true = Parameter(data=y_true, eval_grad=False)
+            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[-1]))
 
-        two = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        two = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
         two.data.fill(2.0)   # just a 2 :p
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False)
+        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         # mean probability: (P + Q)/2
@@ -1005,7 +1000,7 @@ class Loss:
 
     def TestLoss(self, y_out):
 
-        mbatch_size = Parameter((1, 1), init_zeros=True, eval_grad=False) # mini-batch size
+        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_out.shape[-1]))
 
         # a test loss score function that measures the sum of elements of each output vector as the loss of that sample
@@ -1202,7 +1197,7 @@ class Model:
 
     def load(self, file=None):  # model.load() - loads the state of net from a file
         print('loading model from', file)
-        
+
         if file == None:
             file = self.__class__.__name__+'.npy'
 
