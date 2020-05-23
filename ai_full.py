@@ -11,7 +11,7 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, graph=G,
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
@@ -20,7 +20,11 @@ class Parameter:
         self.shape = shape
         self.data = data
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
-        self.graph = graph # graph object this parameter belongs to
+        
+        if graph is not None:   # graph object this parameter belongs to
+            self.graph = graph
+        else:
+            self.graph = G
 
         # constant initializations
         self.init_zeros = init_zeros
@@ -70,7 +74,11 @@ class Parameter:
     # this function when called computes the gradients of the model parameters
     # by executing the backprop operations in reverse order to the forward propagation;
     # the gradients are computed with chain rule
-    def backward(self):
+    def backward(self, grad=None):
+        # assign gradient
+        if grad is not None:
+            self.grad = np.array(grad)
+
         for backprop_op in reversed(self.graph.backprop):
             backprop_op()
 
