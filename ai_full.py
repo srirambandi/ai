@@ -20,7 +20,7 @@ class Parameter:
         self.shape = shape
         self.data = data
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
-        
+
         if graph is not None:   # graph object this parameter belongs to
             self.graph = graph
         else:
@@ -70,6 +70,11 @@ class Parameter:
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)
+
+    def __str__(self):
+
+        print('Parameter({})'.format(self.shape))
+        print('Data {}'.format(self.data))
 
     # this function when called computes the gradients of the model parameters
     # by executing the backprop operations in reverse order to the forward propagation;
@@ -640,6 +645,9 @@ class Linear:
         self.b = Parameter((self.hidden_next, 1), init_zeros=True, graph=self.graph)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
+    def __str__(self):
+        return('Linear({}, {})'.format(self.hidden_prev, self.hidden_next))
+
     def __call__(self, x):  # easy callable
         return self.forward(x)
 
@@ -687,6 +695,9 @@ class Conv2d:
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.K, self.b]
 
+    def __str__(self):
+        return('Conv2d({}, {})'.format(self.input_channels, self.output_channels))
+
     def __call__(self, x):  # easy callable
         return self.forward(x)
 
@@ -733,6 +744,9 @@ class ConvTranspose2d:
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.K, self.b]
 
+    def __str__(self):
+        return('ConvTranspose2d({}, {})'.format(self.input_channels, self.output_channels))
+
     def __call__(self, x):  # easy callable
         return self.forward(x)
 
@@ -764,6 +778,9 @@ class LSTM:
         self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
         self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
         self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
+
+    def __str__(self):
+        return('LSTM({}, {})'.format(self.input_size, self.hidden_size))
 
     def __call__(self, x, hidden):  # easy callable
         return self.forward(x, hidden)
@@ -808,6 +825,9 @@ class RNN:
         self.b_hh = Parameter((self.hidden_size, 1), init_zeros=True, graph=self.graph)
         self.parameters = [self.W_ih, self.W_hh, self.b_hh]
 
+    def __str__(self):
+        return('RNN({}, {})'.format(self.input_size, self.hidden_size))
+
     def __call__(self, x, hidden):  # easy callable
         return self.forward(x, hidden)
 
@@ -840,6 +860,9 @@ class BatchNorm:
         self.parameters = [self.gamma, self.beta]
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
+
+    def __str__(self):
+        return('BatchNorm()')
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
@@ -1185,6 +1208,15 @@ class Optimizer:
 class Model:
     def __init__(self):
         self.layers = []
+
+    def __str__(self):
+
+        print(self.__class__.__name__, '(')
+
+        for layer in self.layers:
+            print(' ', layer)
+
+        print(')')
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
