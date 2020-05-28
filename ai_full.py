@@ -72,9 +72,10 @@ class Parameter:
         self.grad = np.zeros(self.shape)
 
     def __str__(self):
+        parameter_schema = 'Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad)
+        parameter_schema += 'Data: {}'.format(self.data))
 
-        print('Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad))
-        print('Data: {}'.format(self.data))
+        return parameter_schema
 
     # this function when called computes the gradients of the model parameters
     # by executing the backprop operations in reverse order to the forward propagation;
