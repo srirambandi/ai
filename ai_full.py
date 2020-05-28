@@ -1282,7 +1282,13 @@ class Model:
 
         print('model loaded!')
 
-    def get_parameters(self):   # access parameters of the model with this func
+    def parameters(self):   # access parameters of the model with this function
+        parameters = list()
+
+        for layer in self.layers:
+            for parameter in layer.parameters:
+                parameters.append(parameters)
+
         return self.layers
 
 
