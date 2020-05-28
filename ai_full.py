@@ -1203,7 +1203,7 @@ class Optimizer:
         if self.t < 1: print('using Adadelta')
 
         self.t += 1
-        for p in range(len(self.model[l].parameters)):
+        for p in range(len(self.parameters)):
             # clip gradients
             self.parameters[p].grad = np.clip(self.parameters[p].grad, -5.0, 5.0)
 
@@ -1225,7 +1225,7 @@ class Optimizer:
 # model class to add useful features like save, load model from files
 class Model:
     def __init__(self):
-        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
+        pass
 
     def __str__(self):
         model_schema = str(self.__class__.__name__) + '(\n'
@@ -1249,7 +1249,7 @@ class Model:
             layers_data[name] = parameter_list
 
         if file == None:
-            file = self.__class__.__name__'.npy'
+            file = self.__class__.__name__+'.npy'
 
         np.save(file, layers_data)
         return('Successfully saved model in {}'.format(file))
@@ -1271,10 +1271,11 @@ class Model:
 
     def layers(self):
         attributes = self.__dict__
+        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
 
         layers = dict()
         for name in attributes:
-            if attributes[name].__class__.__name__ in self.parametrized_layers:
+            if attributes[name].__class__.__name__ in parametrized_layers:
                 layers[name] = attributes[name]
 
         return layers

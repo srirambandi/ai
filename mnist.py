@@ -10,13 +10,12 @@ test_file = 'mnist/test.npy'
 
 bag = []
 
-class mnist(ai.Model):
-    def __init__(self, ):
+class MNIST(ai.Model):
+    def __init__(self):
         self.conv1 = ai.Conv2d(1, 8, kernel_size=3, stride=1)
         self.conv2 = ai.Conv2d(8, 16, kernel_size=3, stride=1)
         self.fc1 = ai.Linear(2304, 128)
         self.fc2 = ai.Linear(128, 10)
-        self.layers = [self.conv1, self.conv2, self.fc1, self.fc2]
 
     def forward(self, x):
         o1 = ai.G.relu(self.conv1.forward(x))
@@ -30,9 +29,11 @@ class mnist(ai.Model):
 
         return o6
 
-model = mnist()
+mnist = MNIST()
+print(mnist)
+
 L = ai.Loss(loss_fn='CrossEntropyLoss')
-optim = ai.Optimizer(model.layers, optim_fn='Adadelta', lr=1e-3)
+optim = ai.Optimizer(mnist.parameters(), optim_fn='Adadelta', lr=1e-3)
 
 
 train_dict = load_data(train_file)
@@ -65,7 +66,7 @@ def evaluate():
         input =  np.stack([_ for _ in input], axis = -1)
         output = np.array(outputs[batch * test_m : (batch + 1) * test_m])
 
-        scores = model.forward(input)
+        scores = mnist.forward(input)
         preds = np.argmax(scores.data, axis=0)
 
         correct += np.sum(np.equal(output, preds))
@@ -91,20 +92,20 @@ while loss > 0.1:
         for _ in range(m):
             onehot[output[_], _] = 1.0
 
-        scores = model.forward(input)
+        scores = mnist.forward(input)
 
-        loss = L.loss(scores, onehot).data[0][0]
+        loss = L.loss(scores, onehot)
         loss.backward()
 
         optim.step()        # update parameters with optimization functions
         optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
         if it%10 == 0:
-            print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss))
+            print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss.data[0, 0]))
 
         it += 1
 
     print('\n\n', 'Epoch {} completed. Accuracy: {}'.format(epoch, evaluate()))
 
 
-model.save()
+mnist.save()
