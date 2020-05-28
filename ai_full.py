@@ -73,7 +73,7 @@ class Parameter:
 
     def __str__(self):
         parameter_schema = 'Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad)
-        parameter_schema += 'Data: {}'.format(self.data))
+        parameter_schema += 'Data: {}'.format(self.data)
 
         return parameter_schema
 
@@ -953,9 +953,7 @@ class Loss:
         elif self.loss_fn == 'TestLoss':
             return self.TestLoss(y_out)
         else:
-          print('No such loss function')
-          import sys
-          sys.exit()
+          raise 'No such loss function'
 
     def __str__(self):
         return('Loss(loss_fn={})'.format(self.loss_fn))
@@ -1133,9 +1131,7 @@ class Optimizer:
             self.eps = 1e-6
             return self.Adadelta()
         else:
-          print('No such optimization function')
-          import sys
-          sys.exit()
+          raise 'No such optimization function'
 
     # Stochastic Gradient Descent optimization function
     def SGD(self):
@@ -1229,13 +1225,13 @@ class Optimizer:
 # model class to add useful features like save, load model from files
 class Model:
     def __init__(self):
-        self.layers = []
+        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
 
     def __str__(self):
         model_schema = str(self.__class__.__name__) + '(\n'
 
-        for layer in self.layers:
-            model_schema += '  ' + str(layer) + '\n'
+        for name, layer in self.layers().items():
+            model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
 
         model_schema += ')'
 
@@ -1243,43 +1239,54 @@ class Model:
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
-        layers = []
+        layers_data = dict()
 
-        for layer in self.layers:
-            parameters = []
+        for name, layer in self.layers().items():
+            parameter_list = []
             for parameter in layer.parameters:
-                parameters.append(parameter.data)
-            layers.append(parameters)
+                parameter_list.append(parameter.data)
+
+            layers_data[name] = parameter_list
 
         if file == None:
-            file = self.__class__.__name__
+            file = self.__class__.__name__'.npy'
 
-        np.save(file+'.npy', layers)
-
-        print('model saved in', file)
+        np.save(file, layers_data)
+        return('Successfully saved model in {}'.format(file))
 
     def load(self, file=None):  # model.load() - loads the state of net from a file
-        print('loading model from', file)
+        print('loading model from')
 
         if file == None:
             file = self.__class__.__name__+'.npy'
 
-        layers = np.load(file, allow_pickle=True)
+        layers_data = np.load(file, allow_pickle=True).items()
+        model_layers = self.layers()
 
-        for layer_act, layer in zip(self.layers, layers):
-            for parameter_act, parameter in zip(layer_act.parameters, layer):
-                parameter_act.data = parameter
+        for name, data_list in layers_data:
+            for parameter_act, data_stored in zip(model_layers[name].parameters, data_list):
+                parameter_act.data = data_stored
 
-        print('model loaded!')
+        return('Successfully loaded model in {}'.format(file))
+
+    def layers(self):
+        attributes = self.__dict__
+
+        layers = dict()
+        for name in attributes:
+            if attributes[name].__class__.__name__ in self.parametrized_layers:
+                layers[name] = attributes[name]
+
+        return layers
 
     def parameters(self):   # access parameters of the model with this function
         parameters = list()
 
-        for layer in self.layers:
+        for layer in list(self.layers().values()):
             for parameter in layer.parameters:
-                parameters.append(parameters)
+                parameters.append(parameter)
 
-        return self.layers
+        return parameters
 
 
 # TODO: define regularizations, asserts, batch, utils, GPU support, examples
