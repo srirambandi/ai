@@ -73,8 +73,8 @@ class Parameter:
 
     def __str__(self):
 
-        print('Parameter({})'.format(self.shape))
-        print('Data {}'.format(self.data))
+        print('Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad))
+        print('Data: {}'.format(self.data))
 
     # this function when called computes the gradients of the model parameters
     # by executing the backprop operations in reverse order to the forward propagation;
@@ -633,20 +633,21 @@ G = ComputationalGraph()
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
 class Linear:
-    def __init__(self, hidden_prev=0, hidden_next=0, bias=True, graph=G):
-        self.hidden_prev = hidden_prev  # previous layer units
-        self.hidden_next = hidden_next  # next layer units
+    def __init__(self, input_features=0, output_features=0, bias=True, graph=G):
+        self.input_features = input_features  # previous layer units
+        self.output_features = output_features  # next layer units
         self.bias = bias
         self.graph = graph
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.hidden_next, self.hidden_prev), graph=self.graph)  # weight volume
-        self.b = Parameter((self.hidden_next, 1), init_zeros=True, graph=self.graph)   # bias vector
+        self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
+        self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
         self.parameters = [self.W, self.b]  # easy access of the layer params
 
     def __str__(self):
-        return('Linear({}, {})'.format(self.hidden_prev, self.hidden_next))
+        return('Linear(input_features={}, output_features={}, bias={})'.format(
+            self.input_features, self.output_features, self.bias))
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
@@ -696,7 +697,8 @@ class Conv2d:
         self.parameters = [self.K, self.b]
 
     def __str__(self):
-        return('Conv2d({}, {})'.format(self.input_channels, self.output_channels))
+        return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
+            self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
@@ -745,7 +747,8 @@ class ConvTranspose2d:
         self.parameters = [self.K, self.b]
 
     def __str__(self):
-        return('ConvTranspose2d({}, {})'.format(self.input_channels, self.output_channels))
+        return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(
+            self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.a, self.bias))
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
@@ -766,9 +769,10 @@ class ConvTranspose2d:
 
 # sequence models: LSTM cell
 class LSTM:
-    def __init__(self, input_size, hidden_size, graph=G):
+    def __init__(self, input_size, hidden_size, bias=True, graph=G):
         self.input_size = input_size    # size of the input at each recurrent tick
         self.hidden_size = hidden_size  # size of hidden units h and c
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
@@ -780,7 +784,8 @@ class LSTM:
         self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
 
     def __str__(self):
-        return('LSTM({}, {})'.format(self.input_size, self.hidden_size))
+        return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
+            self.input_size, self.hidden_size, self.bias))
 
     def __call__(self, x, hidden):  # easy callable
         return self.forward(x, hidden)
@@ -793,7 +798,15 @@ class LSTM:
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
 
-        gates = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.b_hh, axis=(-1,)), self.graph.add(self.graph.dot(self.W_ih, x), self.b_ih, axis=(-1,)))
+        h_h = self.graph.dot(self.W_hh, h)
+        if self.bias:
+            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
+
+        i_h = self.graph.dot(self.W_ih, x)
+        if self.bias:
+            i_h = self.graph.add(i_h, self.b_ih, axis=(-1,))
+
+        gates = self.graph.add(h_h, i_h)
 
         # forget, input, gate(also called cell gate - different from cell state), output gates of the lstm cell
         # useful: http://colah.github.io/posts/2015-08-Understanding-LSTMs/
@@ -812,21 +825,23 @@ class LSTM:
 
 # sequence models: RNN cell
 class RNN:
-    def __init__(self, input_size, hidden_size, graph=G):
+    def __init__(self, input_size, hidden_size, bias=True, graph=G):
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.bias = bias
         self.graph = graph
         self.init_params()
 
     def init_params(self):
         self.W_ih = Parameter((self.hidden_size, self.input_size), graph=self.graph)
         self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
-        # self.b_ih = Parameter((self.hidden_size, 1), init_zeros=True)    # not much use
-        self.b_hh = Parameter((self.hidden_size, 1), init_zeros=True, graph=self.graph)
+        self.b_ih = Parameter((self.hidden_size, 1), graph=self.graph)    # not much use
+        self.b_hh = Parameter((self.hidden_size, 1), graph=self.graph)
         self.parameters = [self.W_ih, self.W_hh, self.b_hh]
 
     def __str__(self):
-        return('RNN({}, {})'.format(self.input_size, self.hidden_size))
+        return('RNN(input_size={}, hidden_size={}, bias={})'.format(
+            self.input_size, self.hidden_size, self.bias))
 
     def __call__(self, x, hidden):  # easy callable
         return self.forward(x, hidden)
@@ -838,7 +853,16 @@ class RNN:
         if type(x) is not Parameter:
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
-        h = self.graph.add(self.graph.add(self.graph.dot(self.W_hh, h), self.graph.dot(self.W_ih, x)), self.b_hh, axis=(-1,))
+        h_h = self.graph.dot(self.W_hh, h)
+        if self.bias:
+            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
+
+        i_h = self.graph.dot(self.W_ih, x)
+        if self.bias:
+            i_h = self.graph.add(i_h, self.b_ih, axis=(-1,))
+
+        h = self.graph.add(h_h, i_h)
+
         h = self.graph.tanh(h)
 
         return h
@@ -862,7 +886,8 @@ class BatchNorm:
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
     def __str__(self):
-        return('BatchNorm()')
+        return('BatchNorm({}, axis={}, momentum={}, bias={})'.format(
+            self.hidden_shape, self.axis, self.momentum, self.bias))
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
@@ -930,6 +955,9 @@ class Loss:
           print('No such loss function')
           import sys
           sys.exit()
+
+    def __str__(self):
+        return('Loss(loss_fn={})'.format(self.loss_fn))
 
     def MSELoss(self, y_out, y_true):
 
@@ -1085,6 +1113,10 @@ class Optimizer:
                         layer_param.append(np.zeros(parameter.shape))
                     self.v.append(layer_param)
 
+    def __str__(self):
+        return('Optimizer(model={}, optim_fn={}, lr={}, momentum={})'.format(
+            self.model.__class__.__name__, self.optim_fn, self.lr, self.momentum))
+
     # a very important step in learning time
     def zero_grad(self):
         # clearing out the backprop operations from the list
@@ -1210,13 +1242,14 @@ class Model:
         self.layers = []
 
     def __str__(self):
-
-        print(self.__class__.__name__, '(')
+        model_schema = str(self.__class__.__name__) + '(\n'
 
         for layer in self.layers:
-            print(' ', layer)
+            model_schema += '  ' + str(layer) + '\n'
 
-        print(')')
+        model_schema += ')'
+
+        return model_schema
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
