@@ -5,8 +5,8 @@ def load_data(file):
     dict = np.load(file, allow_pickle=True)
     return dict
 
-train_file = 'mnist/train.npy'
-test_file = 'mnist/test.npy'
+train_file = 'MNIST/train.npy'
+test_file = 'MNIST/test.npy'
 
 bag = []
 

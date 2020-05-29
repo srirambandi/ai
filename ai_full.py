@@ -6,7 +6,7 @@ BSD License
 """
 
 import numpy as np
-
+np.random.seed(2357)
 
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
@@ -41,10 +41,6 @@ class Parameter:
         self.high = high    # distribution to initialize the parameter
         self.mean = mean    # mean and variance of the gaussian
         self.std = std      # distribution to initialize the parameter
-
-        # back-propagation hooks
-        self.backward = lambda: None
-        self.exec_backward = False
 
         # creating weight and gradient matrices
         self.init_params()
@@ -1165,6 +1161,7 @@ class Optimizer:
     def zero_grad(self):
         # clearing out the backprop operations from the list
         self.graph.backprop = []
+        self.graph.nodes = 0
 
         # resetting the gradients of model parameters to zero
         for parameter in self.parameters:

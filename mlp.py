@@ -13,7 +13,6 @@ class MLP(ai.Model):
     def __init__(self, ):
         self.fc1 = ai.Linear(784, 200)
         self.fc2 = ai.Linear(200, 10)
-        self.layers = [self.fc1, self.fc2]
 
     def forward(self, x):
         o1 = ai.G.dropout(ai.G.relu(self.fc1.forward(x)), p=0.75)
@@ -22,9 +21,11 @@ class MLP(ai.Model):
 
         return o2
 
-model = MLP()
+mlp = MLP()
+print(mlp)
+
 L = ai.Loss(loss_fn='CrossEntropyLoss')
-optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
+optim = ai.Optimizer(mlp.parameters(), optim_fn='Adam', lr=1e-3)
 
 
 train_dict = load_data(train_file)
@@ -57,7 +58,7 @@ def evaluate():
         input =  np.stack([_ for _ in input], axis = -1)
         output = np.array(outputs[batch * test_m : (batch + 1) * test_m])
 
-        scores = model.forward(input)
+        scores = mlp.forward(input)
         preds = np.argmax(scores.data, axis=0)
 
         correct += np.sum(np.equal(output, preds))
@@ -83,20 +84,20 @@ while epoch < 10:
         for _ in range(m):
             onehot[output[_], _] = 1.0
 
-        scores = model.forward(input)
+        scores = mlp.forward(input)
 
-        loss = L.loss(scores, onehot).data[0][0]
+        loss = L.loss(scores, onehot)
         loss.backward()
 
         optim.step()        # update parameters with optimization functions
         optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
         if it%10 == 0:
-            print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss))
+            print('epoch: {}, iter: {}, loss: {}'.format(epoch, it, loss.data[0, 0]))
 
         it += 1
 
     print('\n\n', 'Epoch {} completed. Accuracy: {}'.format(epoch, evaluate()))
 
 
-model.save()
+mlp.save()
