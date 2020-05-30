@@ -22,7 +22,6 @@ class CharRNN(ai.Model):
     def __init__(self, ):
         self.rnn = ai.RNN(input_size, hidden_size)
         self.fc = ai.Linear(hidden_size, output_size)
-        self.layers = [self.rnn, self.fc]
 
     def forward(self, x, h):
         scores = []
@@ -38,19 +37,23 @@ class CharRNN(ai.Model):
         return scores, h
 
 
-model = CharRNN()
-# model.load()
+charrnn = CharRNN()
+print(charrnn)
+
 L = ai.Loss(loss_fn='CrossEntropyLoss')
-optim = ai.Optimizer(model.layers, optim_fn='Adam', lr=1e-3)
+optim = ai.Optimizer(charrnn.parameters(), optim_fn='Adam', lr=1e-3)
 
 
 def sample_chars(h, seed_ix, n):
+
     x = np.zeros((vocab_size, 1))
     x[seed_ix] = 1
     chars = []
+
     ai.G.grad_mode = False
+
     for seq in range(n):
-        o, h = model.forward([x], h)
+        o, h = charrnn.forward([x], h)
         ix = np.random.choice(range(vocab_size), p=o[0].data.ravel())
         x = np.zeros((vocab_size, 1))
         x[ix] = 1
@@ -76,7 +79,7 @@ while True:
         x[i][inputs[i]] = 1
         y[i][targets[i]] = 1
 
-    scores, h = model.forward(x, h)
+    scores, h = charrnn.forward(x, h)
     loss = []
     for out, true in zip(scores, y):
         loss.append(L.loss(out, true))
@@ -86,16 +89,18 @@ while True:
     optim.zero_grad()   # clearing the backprop list and resetting the gradients to zero
 
     if it%100 == 0:
+
         curr_loss = sum([loss[i].data[0][0] for i in range(seq_length)])
         if smooth_loss == 0:
             smooth_loss = curr_loss
+
         smooth_loss = smooth_loss*0.99 + curr_loss*0.01
         print('Loss: iter', it, smooth_loss)
-        txt = ''.join(sample_chars(h, inputs[0], 500))
-        print('----\n %s \n----' % (txt, ))
+        # txt = ''.join(sample_chars(h, inputs[0], 500))
+        # print('----\n %s \n----' % (txt, ))
 
         if it == 20000:
-            model.save()
+            charrnn.save()
             break
 
     p += seq_length

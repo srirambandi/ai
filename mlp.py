@@ -35,7 +35,6 @@ outputs = train_dict.item()['labels']
 del train_dict
 
 it, epoch = 0, 0
-loss = np.inf
 m = 32
 
 

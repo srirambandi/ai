@@ -79,7 +79,7 @@ def evaluate():
     return accuracy
 
 
-while loss > 0.1:
+while epoch < 10:
     epoch += 1
     it = 0
     for batch in range(int(len(outputs) / m)):
