@@ -6,7 +6,7 @@ BSD License
 """
 
 import numpy as np
-np.random.seed(2357)
+
 
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
@@ -42,7 +42,7 @@ class Parameter:
         self.mean = mean    # mean and variance of the gaussian
         self.std = std      # distribution to initialize the parameter
 
-        # creating weight and gradient matrices
+        # creating weight and gradient tensors
         self.init_params()
 
     def init_params(self):
@@ -57,7 +57,7 @@ class Parameter:
             self.data = np.zeros(self.shape)
 
         elif self.init_ones:
-            # initiating with ones of given shape
+            # initiating with ones(or a constant) of given shape
             self.data = np.ones(self.shape) * self.constant
 
         elif self.uniform:
@@ -77,9 +77,8 @@ class Parameter:
 
         return parameter_schema
 
-    # this function when called computes the gradients of the model parameters
-    # by executing the backprop operations in reverse order to the forward propagation;
-    # the gradients are computed with chain rule
+    # this function computes the gradients of the parameters, by executing
+    # the backprop ops in reverse order to the forward propagation with chain rule
     def backward(self, grad=None, to=None):
         # assign gradient
         if grad is not None:
@@ -104,7 +103,7 @@ class Parameter:
 
 
 # Computational Graph wannabe: stores the backward operation for every
-# forward operation during forward-propagation and later computes them, in a breadth-fist manner
+# forward operation during forward-propagation, in a breadth-fist manner
 class ComputationalGraph:
     def __init__(self, grad_mode=True):
         self.grad_mode = grad_mode
@@ -146,7 +145,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.grad += out.grad
                 if y.eval_grad:
-                    y.grad += np.sum(out.grad, axis = axis).reshape(y.shape)   # bias adding to batched vector
+                    y.grad += np.sum(out.grad, axis = axis).reshape(y.shape)   # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -167,7 +166,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.grad += out.grad
                 if y.eval_grad:
-                    y.grad -= np.sum(out.grad, axis=axis).reshape(y.shape)  # for the second parameter
+                    y.grad -= np.sum(out.grad, axis=axis).reshape(y.shape)  # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -189,7 +188,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.grad += np.multiply(out.grad, y.data)
                 if y.eval_grad:
-                    y.grad += np.sum(np.multiply(out.grad, x.data), axis=axis).reshape(y.shape)
+                    y.grad += np.sum(np.multiply(out.grad, x.data), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -210,7 +209,7 @@ class ComputationalGraph:
                 if x.eval_grad:
                     x.grad += np.multiply(out.grad, np.divide(1.0, y.data))
                 if y.eval_grad:
-                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data))), axis=axis).reshape(y.shape)
+                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -242,7 +241,7 @@ class ComputationalGraph:
 
         return out
 
-    def power(self, h, power):   # power of all elements in the matrix
+    def power(self, h, power):   # element wise power
         out = Parameter(h.shape, init_zeros=True, graph=self)
         out.data = np.power(h.data, power) if power >= 0 else np.power(h.data, power) + 1e-6     # numerical stability for -ve power
 
@@ -260,7 +259,7 @@ class ComputationalGraph:
 
         return out
 
-    def log(self, h):   # element wise log
+    def log(self, h):   # element wise logarithm
         shape = h.shape
         out = Parameter(shape, init_zeros=True, graph=self)
         out.data = np.log(h.data)
@@ -279,15 +278,13 @@ class ComputationalGraph:
 
         return out
 
-    # layers operations
-    # see older commits of conv2d and maxpool2d for easier understanding of
-    # the portion for conv2d and maxpool2d operation became little complicated to facilitate fast computation.
-    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation
+    # ayers operations
+    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         fi = K.shape[0]     # number of filters
         ch = K.shape[1]     # number of input channels
-        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
+        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
         output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j, batch_size)
@@ -300,7 +297,8 @@ class ComputationalGraph:
         pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.data
         pad_x = pad_x.reshape(1, *pad_shape)
 
-        # convolution function computes cross-correlation instead of actual convolution
+        # convolution function computing cross-correlation instead of actual convolution - otherwise have to use
+        # flipped kernels which doesn't effect learning
         kernel = K.data.reshape(*K.shape, 1)
 
         for r in range(out.shape[1]):        # convolving operation here
@@ -353,12 +351,12 @@ class ComputationalGraph:
 
         return output_feature_maps
 
-    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation
+    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         fi = K.shape[0]     # number of filters - here number of feature input planes
         ch = K.shape[1]     # number of input channels - here number of image output planes
-        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel  of some cth-channel in a kth-filter
+        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
         i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
         batch = x.shape[-1] # batch size of the input
         output_shape = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a))) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
@@ -366,7 +364,7 @@ class ComputationalGraph:
 
         out = np.zeros(pad_output_img_shape)  # output feature maps
 
-        # convolution function computes cross-correlation instead of actual convolution
+        # convolution function computing cross-correlation instead of actual convolution like conv2d
         kernel = K.data.reshape(*K.shape, 1)
 
         for r in range(x.shape[1]):
@@ -417,7 +415,7 @@ class ComputationalGraph:
 
         return output_image
 
-    def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d
+    def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         fi = x.shape[0]     # number of input filter planes
@@ -441,14 +439,13 @@ class ComputationalGraph:
 
                 if self.grad_mode:      # seems inefficient; will improve this whole maxpool op later
 
-                    # Also storing value 1 at locations in the input that caused the output values(max locations);
-                    # this makes life easy during backprop
+                    # Also storing value 1 at locations in the input that caused the output values(max locations); makes life easy during backprop
                     # if multiple 0s occur and max is 0 then it shouldn't count. weeding out such cases by assigning
                     # NaN and later zeroing out their gradient locations too; this was a bug which is fixed now :)
                     out[:, r, c, :][out[:, r, c, :] == 0] = np.nan
                     _ -= out[:, r, c, :].reshape(fi, 1, 1, batch)
                     _[np.isnan(_)] = -1     # removing all zeros locations
-                    # can't use '_' for the below assignment, so using the entire notation :(
+                    # can't use '_' object from above for the below assignment, so using the entire notation :(
                     pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
                     out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
@@ -463,8 +460,8 @@ class ComputationalGraph:
                     for r in range(pool_maps.shape[1]):
                         for c in range(pool_maps.shape[2]):
 
-                            # multiplying each 'mask' like volume(single 1 in the volume along all batches) with the gradient
-                            # at region whose value was by the mask region's input caused
+                            # multiplying each 'mask' like volume(single 1s in the volumes along all batches) with the gradient
+                            # at region whose value was caused by the mask region's input
                             pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= pool_maps.grad[:, r, c, :].reshape(fi, 1, 1, batch)
 
                     # cutting the padded portion from the input gradient
@@ -606,7 +603,7 @@ class ComputationalGraph:
 
         return out
 
-    # utility functions
+    # data manipulation/view functions
     def split(self, W, sections=1, axis=0):
         outs = np.split(W.data, sections, axis=axis)
         outs_list = []
@@ -718,7 +715,7 @@ class Linear:
         return out
 
 
-# convolutional neural network
+# 2D convolutional neural network
 class Conv2d:
     def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
         self.input_channels = input_channels
@@ -765,7 +762,7 @@ class Conv2d:
         return out
 
 
-# convolutional neural network
+# 2d transposed convolutional neural network
 class ConvTranspose2d:
     def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), a=(0, 0), bias=True, graph=G):
         self.input_channels = input_channels
@@ -784,7 +781,7 @@ class ConvTranspose2d:
         self.filter_size = (self.output_channels, *(self.kernel_size))
         self.stride = stride
         self.padding = padding
-        self.a = a
+        self.a = a  # for fixing a single output shape over many possible
         self.bias = bias
         self.graph = graph
         self.init_params()
@@ -916,6 +913,7 @@ class RNN:
         return h
 
 
+# bacth normalization layer
 class BatchNorm:
     def __init__(self, hidden_shape, axis=-1, momentum=0.9, bias=True, graph=G):
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
@@ -1270,7 +1268,7 @@ class Optimizer:
     #define optimizers
 
 
-# model class to add useful features like save, load model from files
+# model class to add useful features like save/load model from files, get parameters etc.
 class Model:
     def __init__(self):
         pass
@@ -1317,7 +1315,7 @@ class Model:
 
         return('Successfully loaded model in {}'.format(file))
 
-    def layers(self):
+    def layers(self):   # returns a dictionary of parametrized layers
         attributes = self.__dict__
         parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
 
@@ -1337,5 +1335,8 @@ class Model:
 
         return parameters
 
+
+# initializations and utitlity functions
+np.random.seed(2357)
 
 # TODO: define regularizations, asserts, batch, utils, GPU support, examples
