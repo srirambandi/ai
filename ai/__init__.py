@@ -13,4 +13,7 @@ from .model import Model
 
 
 # initializations and utitlity functions
-np.random.seed(2357)
+def manual_seed(seed):
+    np.random.seed(seed)
+
+manual_seed(2357)

@@ -1,4 +1,4 @@
-import ai_full as ai
+import ai
 import numpy as np
 
 def load_data(file):

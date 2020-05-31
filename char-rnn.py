@@ -1,4 +1,4 @@
-import ai_full as ai
+import ai
 import numpy as np
 
 # @karpathy 's min-char-rnn input trained with rnn
