@@ -1,4 +1,6 @@
-# ai
+# import ai
+
+__updates on docymentation coming soon__
 AI library in python using numpy
 
 The main purpose of this library is to understand the deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible.

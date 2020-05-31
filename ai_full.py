@@ -15,7 +15,7 @@ import numpy as np
 class Parameter:
     def __init__(self, shape=(0, 0), data=None, eval_grad=True, node=0, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
-                uniform=False, low = -1.0, high = 1.0,4
+                uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
 
         # properties
