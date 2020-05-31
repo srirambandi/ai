@@ -1,5 +1,5 @@
 import numpy as np
-from .parameter import Parameter
+import ai.parameter
 
 
 # Computational Graph wannabe: stores the backward operation for every
@@ -13,7 +13,7 @@ class ComputationalGraph:
     # operations required for deep learning models and their backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
         shape = (W.data.shape[0], x.data.shape[1])
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.dot(W.data, x.data)
 
         if self.grad_mode:
@@ -36,7 +36,7 @@ class ComputationalGraph:
     def add(self, x, y, axis=()):    # element wise addition
         # bias should be passed in position of y
         shape = x.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.add(x.data, y.data)
 
         if self.grad_mode:
@@ -57,7 +57,7 @@ class ComputationalGraph:
 
     def subtract(self, x, y, axis=()):   # element wise subtraction
         shape = x.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.subtract(x.data, y.data)
 
         if self.grad_mode:
@@ -79,7 +79,7 @@ class ComputationalGraph:
     def multiply(self, x, y, axis=()):   # element wise vector multiplication
         # not for scalar multiply
         shape = x.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.multiply(x.data, y.data)
 
         if self.grad_mode:
@@ -100,7 +100,7 @@ class ComputationalGraph:
 
     def divide(self, x, y, axis=()):   # element wise vector division
         shape = x.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.divide(x.data, y.data)
 
         if self.grad_mode:
@@ -124,7 +124,7 @@ class ComputationalGraph:
             res = np.sum(h.data).reshape(1, 1)
         else:
             res = np.sum(h.data, axis=axis, keepdims=True)
-        out = Parameter(res.shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(res.shape, init_zeros=True, graph=self)
         out.data = res
 
         if self.grad_mode:
@@ -142,7 +142,7 @@ class ComputationalGraph:
         return out
 
     def power(self, h, power):   # element wise power
-        out = Parameter(h.shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(h.shape, init_zeros=True, graph=self)
         out.data = np.power(h.data, power) if power >= 0 else np.power(h.data, power) + 1e-6     # numerical stability for -ve power
 
         if self.grad_mode:
@@ -161,7 +161,7 @@ class ComputationalGraph:
 
     def log(self, h):   # element wise logarithm
         shape = h.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.log(h.data)
 
         if self.grad_mode:
@@ -208,7 +208,7 @@ class ComputationalGraph:
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
                 out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
-        output_feature_maps = Parameter(out.shape, init_zeros=True, graph=self)
+        output_feature_maps = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
         output_feature_maps.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
 
         if self.grad_mode:
@@ -278,7 +278,7 @@ class ComputationalGraph:
         # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
         out = out[:, p[0]:out.shape[1]-p[0], p[1]:out.shape[2]-p[1], :]
 
-        output_image = Parameter(out.shape, init_zeros=True, graph=self)
+        output_image = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
         output_image.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
 
         if self.grad_mode:
@@ -349,7 +349,7 @@ class ComputationalGraph:
                     pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
                     out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
-        pool_maps = Parameter(out.shape, init_zeros=True, graph=self)
+        pool_maps = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
         pool_maps.data = out
 
         if self.grad_mode:
@@ -387,7 +387,7 @@ class ComputationalGraph:
         # units are always present
         else:
             dropout_mask = p
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = dropout_mask*x.data    # drop/sclae
 
         if self.grad_mode:
@@ -407,7 +407,7 @@ class ComputationalGraph:
     # hidden and output units activations
     def relu(self, z):      # element wise ReLU activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.maximum(z.data, 0)
 
         if self.grad_mode:
@@ -427,7 +427,7 @@ class ComputationalGraph:
 
     def lrelu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.maximum(z.data, alpha * z.data)
 
         if self.grad_mode:
@@ -447,7 +447,7 @@ class ComputationalGraph:
 
     def sigmoid(self, z):   # element wise sigmoid activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = 1.0/(1.0 + np.exp(-1.0*z.data))
 
         if self.grad_mode:
@@ -466,7 +466,7 @@ class ComputationalGraph:
 
     def softmax(self, z):   # calculates probs for the unnormalized log probabilities of previous layer
         shape = z.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.exp(z.data - np.max(z.data)) / np.sum(np.exp(z.data - np.max(z.data)), axis=0).reshape(1, -1)
 
         if self.grad_mode:
@@ -486,7 +486,7 @@ class ComputationalGraph:
 
     def tanh(self, z):      # element wise tanh activations
         shape = z.shape
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = np.tanh(z.data)
 
         if self.grad_mode:
@@ -508,7 +508,7 @@ class ComputationalGraph:
         outs = np.split(W.data, sections, axis=axis)
         outs_list = []
         for e in outs:
-            o = Parameter(e.shape, init_zeros=True, graph=self)
+            o = ai.parameter.Parameter(e.shape, init_zeros=True, graph=self)
             o.data = e
             outs_list.append(o)
 
@@ -528,7 +528,7 @@ class ComputationalGraph:
 
     def T(self, x):     # transpose
         shape = tuple(reversed(x.shape))
-        out = Parameter(shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         out.data = x.data.T
 
         if self.grad_mode:
@@ -553,7 +553,7 @@ class ComputationalGraph:
             new_shape = x.data.reshape(-1, batch_size).shape
         else:
             new_shape = (*new_shape, batch_size)
-        out = Parameter(new_shape, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(new_shape, init_zeros=True, graph=self)
         out.data = x.data.reshape(new_shape)
 
         if self.grad_mode:

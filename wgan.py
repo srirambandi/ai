@@ -95,7 +95,7 @@ while epoch < 1:
     it = 0
 
     for p in generator.parameters():
-        p.requires_grad = False
+        p.eval_grad = False
 
     for _ in range(k):
 
@@ -118,7 +118,7 @@ while epoch < 1:
         d_optim.zero_grad()
 
     for p in generator.parameters():
-        p.requires_grad = True
+        p.eval_grad = True
 
     z = np.random.randn(z_dim, m)
     fake_images = generator.forward(z)

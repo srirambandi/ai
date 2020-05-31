@@ -1,4 +1,5 @@
 import numpy as np
+import ai.graph
 
 
 # the Parameter object: stores weights and derivatives of weights(after backprop)
@@ -21,7 +22,7 @@ class Parameter:
         if graph is not None:   # graph object this parameter belongs to
             self.graph = graph
         else:
-            self.graph = G
+            self.graph = ai.graph.G
 
         # constant initializations
         self.init_zeros = init_zeros
@@ -65,7 +66,7 @@ class Parameter:
         self.grad = np.zeros(self.shape)
 
     def __str__(self):
-        parameter_schema = 'Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad)
+        parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:\n'.format(self.shape, self.eval_grad)
         parameter_schema += 'Data: {}'.format(self.data)
 
         return parameter_schema

@@ -1,6 +1,6 @@
 import numpy as np
-from .parameter import Parameter
-from .graph import ComputationalGraph, G
+from ai.parameter import Parameter
+from ai.graph import ComputationalGraph, G
 
 
 # bacth normalization layer

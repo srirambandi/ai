@@ -1,8 +1,10 @@
 """
 AI library in python using numpy
-Written by Sri Ram Bandi (@_srirambandi_)
 
-BSD License
+Author: Sri Ram Bandi (srirambandi.654@gmail.com)
+        https://srirambandi.github.io
+
+MIT License
 """
 
 import numpy as np
@@ -13,7 +15,7 @@ import numpy as np
 class Parameter:
     def __init__(self, shape=(0, 0), data=None, eval_grad=True, node=0, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
-                uniform=False, low = -1.0, high = 1.0,
+                uniform=False, low = -1.0, high = 1.0,4
                 mean = 0.0, std = 0.01):
 
         # properties
@@ -72,7 +74,7 @@ class Parameter:
         self.grad = np.zeros(self.shape)
 
     def __str__(self):
-        parameter_schema = 'Parameter(shape={}, requires_grad={}) containing:'.format(self.shape, self.requires_grad)
+        parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:'.format(self.shape, self.eval_grad)
         parameter_schema += 'Data: {}'.format(self.data)
 
         return parameter_schema
@@ -1337,9 +1339,9 @@ class Model:
 
 
 # initializations and utitlity functions
-def manual_seed(seed):
+def manual_seed(seed=2357):
     np.random.seed(seed)
 
-manual_seed(2357)
+manual_seed()
 
 # TODO: define regularizations, asserts, batch, utils, GPU support, examples

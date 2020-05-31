@@ -1,6 +1,6 @@
 import numpy as np
-from .parameter import Parameter
-from .graph import ComputationalGraph, G
+from ai.parameter import Parameter
+from ai.graph import ComputationalGraph, G
 
 
 # model class to add useful features like save/load model from files, get parameters etc.
