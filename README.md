@@ -1,6 +1,6 @@
 # import ai
 
-AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements most Deep Learning library components with and end API similar to my favourite library, Pytorch.
+AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with and end API similar to that of my favourite, Pytorch.
 
 The main purpose of this library is to serve as an educational tool, a reference guide to understand the mechanics of deep concepts of AI by implementing everything from scratch. Along the way learning to implement pytorch like Deep Learning scripts, and having some fun with your own tweaks! I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video. So, as you have guessed, the best way to utilise this library is by implementing your own from scratch, with your own philosophy and design :)
 
@@ -18,17 +18,18 @@ I will keep updating the library with more explanations, documentation and a sim
 
 ### Installation
 
-This library requires Python>=3.6 and numpy. First install them from requirements.txt, and install as the library below
+This library requires Python>=3.6 and numpy. First install them from requirements.txt, and install the library as below
 
 ````bash
 pip install import-ai
 ````
 
-or you could just clone this repo and work locally in the repo.
+or you could just clone this repo and work locally.
 
 ### Usage
 
-> You can directly work with Parameter objects, ComputationGraph and have fun! The graph engine takes care of the reverse-mode auto-differentiation - backpropagation. It is of highest importance that you actually know how this internal mechanics work together, that's the foremost intended pyrpose of this library.
+> You can directly work with Parameter objects, ComputationGraph and have fun! The graph engine takes care of the reverse-mode auto-differentiation - the backpropagation algorithm. It is of highest importance that you actually understand how these internal mechanics work together, that's the foremost intended purpose of this library.
+
 import and initiate
 ````python
 >>> import ai
