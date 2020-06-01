@@ -1,6 +1,6 @@
 # import ai
 
-AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements most Deep Learning library components with and edn APi similar to popular Pytorch API.
+AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements most Deep Learning library components with and end API similar to my favourite library, Pytorch.
 
 The main purpose of this library is to serve as an educational tool, a reference guide to understand the mechanics of deep concepts of AI by implementing everything from scratch. Along the way learning to implement pytorch like Deep Learning scripts, and having some fun with your own tweaks! I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video. So, as you have guessed, the best way to utilise this library is by implementing your own from scratch, with your own philosophy and design :)
 
