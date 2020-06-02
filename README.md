@@ -2,7 +2,11 @@
 
 AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with and end API similar to that of my favourite, Pytorch.
 
-The main purpose of this library is to serve as an educational tool, a reference guide to understand the mechanics of deep concepts of AI by implementing everything from scratch. Along the way learning to implement pytorch like Deep Learning scripts, and having some fun with your own tweaks! I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video. So, as you have guessed, the best way to utilise this library is by implementing your own from scratch, with your own philosophy and design :)
+### Purpose of this library
+
+Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the mechanics of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video. 
+
+So, as you have guessed, the best way to utilise this library is by implementing your own from scratch. Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :)
 
 ### Features
 
@@ -42,15 +46,17 @@ Data: [[-0.01092495  0.00542457 -0.00562512]
  [ 0.00911396 -0.00143499 -0.0160998 ]
  [-0.01601084  0.01146977  0.00797995]]
 ```` 
+
 do operations
 ````python
->>> y = ai.G.add(ai.G.dot(a, x), b)
+>>> y = (a @ x) + b       # supports basic arithmetic
 >>> print(y)
 Parameter(shape=(3, 1), eval_grad=True) containing:
 Data: [[-0.00011536]
  [ 0.00012833]
  [-0.00023106]]
 ````
+
 backward
 ````python
 >>> y.grad[1, 0] = 1.0
@@ -82,7 +88,7 @@ class Net(ai.Model):
         o2 = ai.G.dropout(ai.G.maxpool(o1), p=0.5)
         o3 = self.fc(o2)
 
-        return ai.softmax(o3)
+        return ai.G.softmax(o3)
     
 model = Net()
 print(model)
