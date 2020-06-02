@@ -86,6 +86,52 @@ class Parameter:
         for backprop_op in reversed(self.graph.backprop[stop:int(self.node) + 1]):
             backprop_op()
 
+    def __add__(self, other):
+
+        if not isinstance(other, Parameter):
+            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+
+        assert self.shape == other.shape, ('Objects not of same shape. Use G.add() with axis argument', self.shape, other.shape)
+
+        return self.graph.add(self, other)
+
+    def __sub__(self, other):
+
+        if not isinstance(other, Parameter):
+            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+
+        assert self.shape == other.shape, ('Objects not of same shape. Use G.subtract() with axis argument', self.shape, other.shape)
+
+        return self.graph.subtract(self, other)
+
+    def __mul__(self, other):
+
+        if not isinstance(other, Parameter):
+            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+
+        assert self.shape == other.shape, ('Objects not of same shape. Use G.multiply() with axis argument', self.shape, other.shape)
+
+        return self.graph.multiply(self, other)
+
+    def __matmul__(self, other):
+
+        if not isinstance(other, Parameter):
+            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+
+        return self.graph.dot(self, other)
+
+    def __truediv_(self, other):
+
+        if not isinstance(other, Parameter):
+            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+
+        assert self.shape == other.shape, 'Objects not of same shape. Use G.divide() with axis argument'
+
+        return self.graph.divide(self, other)
+
+    def __pow_(self, other, modulo):
+        return self.graph.power(self, other)
+
     # transpose
     def T(self):
 

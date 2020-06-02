@@ -5,10 +5,10 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="import-ai",
-    version="1.0.0",
+    version="1.1.0",
     author="Sri Ram Bandi",
     author_email="srirambandi.654@gmail.com",
-    description="AI library in python using numpy, with end-to-end auto differentiable Computational Graph",
+    description="AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/srirambandi/ai",

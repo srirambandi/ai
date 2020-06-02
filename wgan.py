@@ -110,7 +110,7 @@ while epoch < 1:
 
         d_loss_fake = critic.forward(fake_images)
 
-        d_loss = ai.G.subtract(d_loss_real, d_loss_fake)
+        d_loss = d_loss_real - d_loss_fake
         d_loss.grad[] = 1.0
 
         d_loss.backward()

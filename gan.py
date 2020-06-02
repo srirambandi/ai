@@ -113,7 +113,7 @@ while epoch < 1:
         fake_probs = descriminator.forward(fake_images)
         d_loss_fake = L.loss(fake_probs, fake_labels)
 
-        d_loss = ai.G.add(d_loss_real, d_loss_fake)
+        d_loss = d_loss_real + d_loss_fake
         d_loss.grad = 0
 
         d_loss.backward()
