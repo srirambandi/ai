@@ -701,7 +701,7 @@ class Linear:
 
     def forward(self, x):
         # making the input compatible with graph operations
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # flatten the input if it came from layers like Conv2d
@@ -723,11 +723,11 @@ class Conv2d:
         self.input_channels = input_channels
         self.output_channels = output_channels
 
-        if type(kernel_size) is not tuple:
+        if not isinstance(kernel_size, tuple):
             kernel_size = (kernel_size, kernel_size)
-        if type(stride) is not tuple:
+        if not isinstance(stride, tuple):
             stride = (stride, stride)
-        if type(padding) is not tuple:
+        if not isinstance(padding, tuple):
             padding = (padding, padding)
 
         self.kernel_size = kernel_size
@@ -752,7 +752,7 @@ class Conv2d:
 
     def forward(self, x):
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution operation
@@ -770,13 +770,13 @@ class ConvTranspose2d:
         self.input_channels = input_channels
         self.output_channels = output_channels
 
-        if type(kernel_size) is not tuple:
+        if not isinstance(kernel_size, tuple):
             kernel_size = (kernel_size, kernel_size)
-        if type(stride) is not tuple:
+        if not isinstance(stride, tuple):
             stride = (stride, stride)
-        if type(padding) is not tuple:
+        if not isinstance(padding, tuple):
             padding = (padding, padding)
-        if type(a) is not tuple:
+        if not isinstance(a, tuple):
             a = (a, a)
 
         self.kernel_size = kernel_size
@@ -802,7 +802,7 @@ class ConvTranspose2d:
 
     def forward(self, x):
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution transpose operation
@@ -841,7 +841,7 @@ class LSTM:
 
         h, c = hidden
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
 
@@ -897,7 +897,7 @@ class RNN:
 
         h = hidden
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         h_h = self.graph.dot(self.W_hh, h)
@@ -942,7 +942,7 @@ class BatchNorm:
 
     def forward(self, x):
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         if self.graph.grad_mode:    # training
@@ -1007,7 +1007,7 @@ class Loss:
 
     def MSELoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -1024,7 +1024,7 @@ class Loss:
 
     def CrossEntropyLoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -1044,7 +1044,7 @@ class Loss:
 
     def BCELoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -1076,7 +1076,7 @@ class Loss:
 
     def JSDivLoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
