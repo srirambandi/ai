@@ -13,7 +13,7 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node=0, graph=None,
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=0, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
@@ -25,7 +25,7 @@ class Parameter:
 
         # node id - in the bfs like graph walk during forward pass, the node numeber
         # of the path ie., the latest backward op of which this parameter was an output
-        self.node = node
+        self.node_id = node_id
 
         if graph is not None:   # graph object this parameter belongs to
             self.graph = graph
@@ -89,10 +89,10 @@ class Parameter:
         if to is None:
             stop = 0    # execute backward all the way to start
         else:
-            stop = to.node + 1  # execute backward  to just before this node
+            stop = to.node_id + 1  # execute backward  to just before this node
 
-        for backprop_op in reversed(self.graph.backprop[stop:int(self.node) + 1]):
-            backprop_op()
+        for node in reversed(self.graph.nodes[stop:int(self.node_id) + 1]):
+            node['backprop_op']()       # executing the back-propagation operation
 
     def __add__(self, other):
 
@@ -155,8 +155,7 @@ class Parameter:
 class ComputationalGraph:
     def __init__(self, grad_mode=True):
         self.grad_mode = grad_mode
-        self.backprop = []
-        self.nodes = 0
+        self.nodes = []
 
     # operations required for deep learning models and their backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
@@ -177,9 +176,9 @@ class ComputationalGraph:
 
                 # return (x.grad, W.grad)
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '@', 'inputs': [W, x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -199,9 +198,9 @@ class ComputationalGraph:
 
                 # return (x.grad, y.grad)
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '+', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -220,9 +219,9 @@ class ComputationalGraph:
 
                 # return (x.grad, y.grad)
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '-', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -242,9 +241,9 @@ class ComputationalGraph:
 
                 # return (x.grad, y.grad)
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '*', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -263,9 +262,9 @@ class ComputationalGraph:
 
                 # return (x.grad, y.grad)
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '/', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -285,9 +284,9 @@ class ComputationalGraph:
 
                 # return h.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'sum', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -303,9 +302,9 @@ class ComputationalGraph:
 
                 # return h.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': '**', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -322,9 +321,9 @@ class ComputationalGraph:
 
                 # return h.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'log', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -395,9 +394,9 @@ class ComputationalGraph:
 
                 # return (K.grad, x.grad)
 
-            self.backprop.append(lambda: backward())
-            output_feature_maps.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [output_feature_maps], 'backprop_op': lambda: backward()}
+            output_feature_maps.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return output_feature_maps
 
@@ -459,9 +458,9 @@ class ComputationalGraph:
 
                 # return (K.grad, x.grad)
 
-            self.backprop.append(lambda: backward())
-            output_image.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [output_image], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return output_image
 
@@ -520,9 +519,9 @@ class ComputationalGraph:
 
                 # return (x.grad)
 
-            self.backprop.append(lambda: backward())
-            pool_maps.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [pool_maps], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return pool_maps
 
@@ -548,9 +547,9 @@ class ComputationalGraph:
 
                 # return x.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'dropout', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -569,9 +568,9 @@ class ComputationalGraph:
 
                 # return z.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'relu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -589,9 +588,9 @@ class ComputationalGraph:
 
                 # return z.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'lrelu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -608,9 +607,9 @@ class ComputationalGraph:
 
                 # return z.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'sigmoid', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -628,9 +627,9 @@ class ComputationalGraph:
 
                 # return z.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'softmax', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -647,9 +646,9 @@ class ComputationalGraph:
 
                 # return z.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'tanh', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -669,10 +668,10 @@ class ComputationalGraph:
                 if W.eval_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
 
-            self.backprop.append(lambda: backward())
+            node = {'func': 'split', 'inputs': [W], 'outputs': outs_list, 'backprop_op': lambda: backward()}
             for out in outs_list:
-                out.node = int(self.nodes)
-            self.nodes += 1
+                out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return outs_list
 
@@ -689,9 +688,9 @@ class ComputationalGraph:
 
                 # return x.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'transpose', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -714,9 +713,9 @@ class ComputationalGraph:
 
                 # return x.grad
 
-            self.backprop.append(lambda: backward())
-            out.node = int(self.nodes)
-            self.nodes += 1
+            node = {'func': 'reshape', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return out
 
@@ -1208,8 +1207,8 @@ class Optimizer:
     # a very important step in learning time
     def zero_grad(self):
         # clearing out the backprop operations from the list
-        self.graph.backprop = []
-        self.graph.nodes = 0
+        self.graph.nodes = []
+        self.graph.node_count = 0
 
         # resetting the gradients of model parameters to zero
         for parameter in self.parameters:
