@@ -724,10 +724,108 @@ G = ComputationalGraph()
 
 
 
+# generic model class to add useful features like save/load model from files, get parameters etc.
+class Module(object):
+    def __init__(self):
+        self.module_layers = None   # layers defined in module
+        self.module_params = None   # params defined in model_layers
+        self.all_params = None      # params defined in (module + module_layers)
+
+    def __str__(self):
+        model_schema = str(self.__class__.__name__) + '(\n'
+
+        for name, layer in self.module_layers().items():
+            model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
+
+        model_schema += ')'
+
+        return model_schema
+
+    def save(self, file=None):  # model.save() - saves the state of the network
+        print('saving model...')
+        save_dict = dict()
+
+        save_dict['module_layers'] = self.__get_module_layers()
+        save_dict['module_params'] = self.__get_module_params()
+
+        if file == None:
+            file = self.__class__.__name__+'.npy'
+
+        np.save(file, save_dict)
+        return('Successfully saved model in {}'.format(file))
+
+    def load(self, file=None):  # model.load() - loads the state of net from a file
+        print('loading model...')
+
+        if file == None:
+            file = self.__class__.__name__+'.npy'
+
+        load_dict = np.load(file, allow_pickle=True).item()
+        module_layers = load_dict['module_layers']
+        module_params = load_dict['module_params']
+        model_layers = self.layers()
+
+        self.module_layers = self.__get_module_layers()
+        self.module_params = self.__get_module_params()
+
+        for name, layer in module_layers.items():
+            for param_act, param_stored in zip(self.module_layers[name].parameters(), layer.parameters()):
+                parameter_act = data_stored
+
+        for name, param_stored in module_params.items():
+            self.module_params[name] = param_stored
+
+        return('Successfully loaded model from {}'.format(file))
+
+    def __get_module_layers(self):   # returns a dictionary of parametrized layers in the model
+
+        if self.module_layers is not None:
+            return self.module_layers
+
+        attributes = self.__dict__
+        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
+
+        self.module_layers = dict()
+        for name in attributes:
+            if attributes[name].__class__.__name__ in parametrized_layers:
+                self.module_layers[name] = attributes[name]
+
+        return self.module_layers
+
+    def __get_module_params(self):    # returns a dictionary of parameters in the model
+
+        if self.module_params is not None:
+            return self.module_params
+
+        attributes = self.__dict__
+
+        self.module_params = dict()
+        for name in attributes:
+            if attributes[name].__class__.__name__ in ['Parameter']:
+                self.module_params[name] = attributes[name]
+
+        return self.module_params
+
+    def parameters(self):   # access parameters of the model with this function
+
+        if self.all_params is not None:
+            return self.all_params
+
+        self.all_params = list()
+
+        for layer in list(self.__get_module_layers().values()):
+            self.all_params.extend(layer.parameters())
+
+        self.all_params.extend(list(self.__get_module_params().values()))
+
+        return self.all_params
+
+
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
-class Linear:
+class Linear(Module):
     def __init__(self, input_features=0, output_features=0, bias=True, graph=G):
+        super(Linear, self).__init__()
         self.input_features = input_features  # previous layer units
         self.output_features = output_features  # next layer units
         self.bias = bias
@@ -737,7 +835,7 @@ class Linear:
     def init_params(self):
         self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
-        self.parameters = [self.W, self.b]  # easy access of the layer params
+        self.parameters()
 
     def __str__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
@@ -765,8 +863,9 @@ class Linear:
 
 
 # 2D convolutional neural network
-class Conv2d:
+class Conv2d(Module):
     def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
+        super(Conv2d, self).__init__()
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -788,7 +887,7 @@ class Conv2d:
     def init_params(self):
         self.K = Parameter((self.output_channels, *self.filter_size), graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
-        self.parameters = [self.K, self.b]
+        self.parameters()
 
     def __str__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
@@ -812,8 +911,9 @@ class Conv2d:
 
 
 # 2d transposed convolutional neural network
-class ConvTranspose2d:
+class ConvTranspose2d(Module):
     def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), a=(0, 0), bias=True, graph=G):
+        super(ConvTranspose2d, self).__init__()
         self.input_channels = input_channels
         self.output_channels = output_channels
 
@@ -838,7 +938,7 @@ class ConvTranspose2d:
     def init_params(self):
         self.K = Parameter((self.input_channels, *self.filter_size), graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
-        self.parameters = [self.K, self.b]
+        self.parameters()
 
     def __str__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(
@@ -862,8 +962,9 @@ class ConvTranspose2d:
 
 
 # sequence models: LSTM cell
-class LSTM:
+class LSTM(Module):
     def __init__(self, input_size, hidden_size, bias=True, graph=G):
+        super(LSTM, self).__init__()
         self.input_size = input_size    # size of the input at each recurrent tick
         self.hidden_size = hidden_size  # size of hidden units h and c
         self.bias = bias
@@ -875,7 +976,7 @@ class LSTM:
         self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), graph=self.graph)   # hidden to hidden weight volume
         self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
         self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
-        self.parameters = [self.W_ih, self.b_ih, self.W_hh, self.b_hh]
+        self.parameters()
 
     def __str__(self):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
@@ -918,8 +1019,9 @@ class LSTM:
 
 
 # sequence models: RNN cell
-class RNN:
+class RNN(Module):
     def __init__(self, input_size, hidden_size, bias=True, graph=G):
+        super(RNN, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.bias = bias
@@ -931,7 +1033,7 @@ class RNN:
         self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
         self.b_ih = Parameter((self.hidden_size, 1), graph=self.graph)    # not much use
         self.b_hh = Parameter((self.hidden_size, 1), graph=self.graph)
-        self.parameters = [self.W_ih, self.W_hh, self.b_hh]
+        self.parameters()
 
     def __str__(self):
         return('RNN(input_size={}, hidden_size={}, bias={})'.format(
@@ -963,8 +1065,9 @@ class RNN:
 
 
 # bacth normalization layer
-class BatchNorm:
+class BatchNorm(Module):
     def __init__(self, hidden_shape, axis=-1, momentum=0.9, bias=True, graph=G):
+        super(BatchNorm, self).__init__()
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
         self.axis = axis    # along batch channel axis for conv layers and along batches for linear
         self.momentum = momentum
@@ -976,7 +1079,7 @@ class BatchNorm:
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.parameters = [self.gamma, self.beta]
+        self.parameters()
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
@@ -1317,78 +1420,9 @@ class Optimizer:
     #define optimizers
 
 
-# model class to add useful features like save/load model from files, get parameters etc.
-class Model:
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        model_schema = str(self.__class__.__name__) + '(\n'
-
-        for name, layer in self.layers().items():
-            model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
-
-        model_schema += ')'
-
-        return model_schema
-
-    def save(self, file=None):  # model.save() - saves the state of the network
-        print('saving model...')
-        layers_data = dict()
-
-        for name, layer in self.layers().items():
-            parameter_list = []
-            for parameter in layer.parameters:
-                parameter_list.append(parameter.data)
-
-            layers_data[name] = parameter_list
-
-        if file == None:
-            file = self.__class__.__name__+'.npy'
-
-        np.save(file, layers_data)
-        return('Successfully saved model in {}'.format(file))
-
-    def load(self, file=None):  # model.load() - loads the state of net from a file
-        print('loading model from')
-
-        if file == None:
-            file = self.__class__.__name__+'.npy'
-
-        layers_data = np.load(file, allow_pickle=True).items()
-        model_layers = self.layers()
-
-        for name, data_list in layers_data:
-            for parameter_act, data_stored in zip(model_layers[name].parameters, data_list):
-                parameter_act.data = data_stored
-
-        return('Successfully loaded model in {}'.format(file))
-
-    def layers(self):   # returns a dictionary of parametrized layers
-        attributes = self.__dict__
-        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
-
-        layers = dict()
-        for name in attributes:
-            if attributes[name].__class__.__name__ in parametrized_layers:
-                layers[name] = attributes[name]
-
-        return layers
-
-    def parameters(self):   # access parameters of the model with this function
-        parameters = list()
-
-        for layer in list(self.layers().values()):
-            for parameter in layer.parameters:
-                parameters.append(parameter)
-
-        return parameters
-
-
 # initializations and utitlity functions
 def manual_seed(seed=2357):
     np.random.seed(seed)
 
-manual_seed()
 
 # TODO: define regularizations, asserts, batch, utils, GPU support, examples
