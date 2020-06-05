@@ -22,14 +22,18 @@ I will keep updating the library with more explanations, documentation and a sim
 
 ### Installation
 
-This library requires Python>=3.6 and numpy. First install them from requirements.txt, and install the library as below
+This library requires Python>=3.6 and numpy. Install the library as below(Installation takes care of the dependencies):
 
 ````bash
-pip install -r requirements.txt
 pip install import-ai
 ````
 
-or you could just clone this repo and work locally.
+or you could just clone this repo and work locally as below:
+
+````bash
+git clone https://github.com/srirambandi/ai.git
+pip install -r requirements.txt
+````
 
 ### Usage
 
