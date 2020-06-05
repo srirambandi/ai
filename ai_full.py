@@ -727,14 +727,12 @@ G = ComputationalGraph()
 # generic model class to add useful features like save/load model from files, get parameters etc.
 class Module(object):
     def __init__(self):
-        self.module_layers = None   # layers defined in module
-        self.module_params = None   # params defined in model_layers
-        self.all_params = None      # params defined in (module + module_layers)
+        pass
 
     def __str__(self):
         model_schema = str(self.__class__.__name__) + '(\n'
 
-        for name, layer in self.module_layers().items():
+        for name, layer in self.get_module_layers().items():
             model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
 
         model_schema += ')'
@@ -745,14 +743,27 @@ class Module(object):
         print('saving model...')
         save_dict = dict()
 
-        save_dict['module_layers'] = self.__get_module_layers()
-        save_dict['module_params'] = self.__get_module_params()
+        module_layers = self.get_module_layers()
+        for layer_name, layer in module_layers.items():
+
+            layer_params = layer.get_module_params()
+            for param_name, param in layer_params.items():
+                layer_params[param_name] = param.data
+
+            module_layers[layer_name] = layer_params
+
+        module_params = self.get_module_params()
+        for param_name, param in module_params.items():
+            module_params[param_name] = param.data
+
+        save_dict['module_layers'] = module_layers
+        save_dict['module_params'] = module_params
 
         if file == None:
             file = self.__class__.__name__+'.npy'
 
         np.save(file, save_dict)
-        return('Successfully saved model in {}'.format(file))
+        print('Successfully saved model in {}'.format(file))
 
     def load(self, file=None):  # model.load() - loads the state of net from a file
         print('loading model...')
@@ -761,64 +772,57 @@ class Module(object):
             file = self.__class__.__name__+'.npy'
 
         load_dict = np.load(file, allow_pickle=True).item()
-        module_layers = load_dict['module_layers']
-        module_params = load_dict['module_params']
-        model_layers = self.layers()
+        module_layers_stored = load_dict['module_layers']
+        module_params_stored = load_dict['module_params']
 
-        self.module_layers = self.__get_module_layers()
-        self.module_params = self.__get_module_params()
+        module_layers_actual = self.get_module_layers()
+        module_params_actual = self.get_module_params()
 
-        for name, layer in module_layers.items():
-            for param_act, param_stored in zip(self.module_layers[name].parameters(), layer.parameters()):
-                parameter_act = data_stored
+        for layer_name, layer_stored in module_layers_stored.items():
+            if layer_name in module_layers_actual:
+                for param_name, param in layer_stored.items():
+                    layer_actual = module_layers_actual[layer_name]
+                    setattr(layer_actual, str(param_name), Parameter(data=param))
 
-        for name, param_stored in module_params.items():
-            self.module_params[name] = param_stored
+        for param_name, param in module_params_stored.items():
+            if param_name in module_params_actual:
+                setattr(self,str(param_name), Parameter(data=param))
 
-        return('Successfully loaded model from {}'.format(file))
+        print('Successfully loaded model from {}'.format(file))
 
-    def __get_module_layers(self):   # returns a dictionary of parametrized layers in the model
-
-        if self.module_layers is not None:
-            return self.module_layers
+    def get_module_layers(self):   # returns a dictionary of parametrized layers in the model
 
         attributes = self.__dict__
         parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
 
-        self.module_layers = dict()
+        module_layers = dict()
         for name in attributes:
             if attributes[name].__class__.__name__ in parametrized_layers:
-                self.module_layers[name] = attributes[name]
+                module_layers[name] = attributes[name]
 
-        return self.module_layers
+        return module_layers
 
-    def __get_module_params(self):    # returns a dictionary of parameters in the model
-
-        if self.module_params is not None:
-            return self.module_params
+    def get_module_params(self):    # returns a dictionary of parameters in the model
 
         attributes = self.__dict__
 
-        self.module_params = dict()
+        module_params = dict()
         for name in attributes:
             if attributes[name].__class__.__name__ in ['Parameter']:
-                self.module_params[name] = attributes[name]
+                module_params[name] = attributes[name]
 
-        return self.module_params
+        return module_params
 
     def parameters(self):   # access parameters of the model with this function
 
-        if self.all_params is not None:
-            return self.all_params
+        all_params = list()
 
-        self.all_params = list()
+        for layer in list(self.get_module_layers().values()):
+            all_params.extend(layer.parameters())
 
-        for layer in list(self.__get_module_layers().values()):
-            self.all_params.extend(layer.parameters())
+        all_params.extend(list(self.get_module_params().values()))
 
-        self.all_params.extend(list(self.__get_module_params().values()))
-
-        return self.all_params
+        return all_params
 
 
 # linear affine transformation: y = Wx + b
