@@ -2,9 +2,9 @@
 
 AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with and end API similar to that of my favourite, Pytorch.
 
-### Purpose of this library
+### About
 
-Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the mechanics of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video. 
+Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the mechanics of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video.
 
 So, as you have guessed, the best way to utilise this library is by implementing your own from scratch. Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :)
 
@@ -25,6 +25,7 @@ I will keep updating the library with more explanations, documentation and a sim
 This library requires Python>=3.6 and numpy. First install them from requirements.txt, and install the library as below
 
 ````bash
+pip install -r requirements.txt
 pip install import-ai
 ````
 
@@ -45,7 +46,7 @@ Parameter(shape=(3, 3), eval_grad=True) containing:
 Data: [[-0.01092495  0.00542457 -0.00562512]
  [ 0.00911396 -0.00143499 -0.0160998 ]
  [-0.01601084  0.01146977  0.00797995]]
-```` 
+````
 
 do operations
 ````python
@@ -89,7 +90,7 @@ class Net(ai.Model):
         o3 = self.fc(o2)
 
         return ai.G.softmax(o3)
-    
+
 model = Net()
 print(model)
 
@@ -108,13 +109,13 @@ def evaluate():
 
 while condition:
     # training loop
-    
+
     scores = model.forward(train_input)
     loss = L.loss(scores, outputs)
     loss.backward()
-    
+
     # logging info
-    
+
     optim.step()
     optim.zero_grad()
 
