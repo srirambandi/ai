@@ -19,7 +19,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-       'numpy>=1.18.1'
+       "numpy>=1.18.1",
+       "graphviz>=0.14"
     ],
     python_requires='>=3.6',
 )

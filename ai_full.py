@@ -13,7 +13,7 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=0, graph=None,
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
@@ -83,15 +83,19 @@ class Parameter:
     # the backprop ops in reverse order to the forward propagation with chain rule
     def backward(self, grad=None, to=None):
         # assign gradient
+
+        if self.node_id is None:
+            return
+
         if grad is not None:
             self.grad = np.array(grad)
 
         if to is None:
-            stop = 0    # execute backward all the way to start
+            to_node_id = 0    # execute backward all the way to start
         else:
-            stop = to.node_id + 1  # execute backward  to just before this node
+            to_node_id = to.node_id + 1  # execute backward  to just before this node
 
-        for node in reversed(self.graph.nodes[stop:int(self.node_id) + 1]):
+        for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
             node['backprop_op']()       # executing the back-propagation operation
 
     def __add__(self, other):
@@ -290,19 +294,19 @@ class ComputationalGraph:
 
         return out
 
-    def power(self, h, power):   # element wise power
+    def power(self, h, exp):   # element wise power
         out = Parameter(h.shape, init_zeros=True, graph=self)
-        out.data = np.power(h.data, power) if power >= 0 else np.power(h.data, power) + 1e-6     # numerical stability for -ve power
+        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data, exp) + 1e-6     # numerical stability for -ve power
 
         if self.grad_mode:
             def backward():
                 # print('power')
                 if h.eval_grad:
-                    h.grad += np.multiply(out.grad, power * np.power(h.data, power - 1))
+                    h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
 
                 # return h.grad
 
-            node = {'func': '**', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = {'func': '^{}'.format(exp), 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -839,7 +843,6 @@ class Linear(Module):
     def init_params(self):
         self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
-        self.parameters()
 
     def __str__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
@@ -891,7 +894,6 @@ class Conv2d(Module):
     def init_params(self):
         self.K = Parameter((self.output_channels, *self.filter_size), graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
-        self.parameters()
 
     def __str__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
@@ -942,7 +944,6 @@ class ConvTranspose2d(Module):
     def init_params(self):
         self.K = Parameter((self.input_channels, *self.filter_size), graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
-        self.parameters()
 
     def __str__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(
@@ -980,7 +981,6 @@ class LSTM(Module):
         self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), graph=self.graph)   # hidden to hidden weight volume
         self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
         self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
-        self.parameters()
 
     def __str__(self):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
@@ -997,15 +997,15 @@ class LSTM(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
 
-        h_h = self.graph.dot(self.W_hh, h)
-        if self.bias:
-            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
-
         i_h = self.graph.dot(self.W_ih, x)
         if self.bias:
             i_h = self.graph.add(i_h, self.b_ih, axis=(-1,))
 
-        gates = self.graph.add(h_h, i_h)
+        h_h = self.graph.dot(self.W_hh, h)
+        if self.bias:
+            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
+
+        gates = self.graph.add(i_h, h_h)
 
         # forget, input, gate(also called cell gate - different from cell state), output gates of the lstm cell
         # useful: http://colah.github.io/posts/2015-08-Understanding-LSTMs/
@@ -1037,7 +1037,6 @@ class RNN(Module):
         self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
         self.b_ih = Parameter((self.hidden_size, 1), graph=self.graph)    # not much use
         self.b_hh = Parameter((self.hidden_size, 1), graph=self.graph)
-        self.parameters()
 
     def __str__(self):
         return('RNN(input_size={}, hidden_size={}, bias={})'.format(
@@ -1053,15 +1052,15 @@ class RNN(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
-        h_h = self.graph.dot(self.W_hh, h)
-        if self.bias:
-            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
-
         i_h = self.graph.dot(self.W_ih, x)
         if self.bias:
             i_h = self.graph.add(i_h, self.b_ih, axis=(-1,))
 
-        h = self.graph.add(h_h, i_h)
+        h_h = self.graph.dot(self.W_hh, h)
+        if self.bias:
+            h_h = self.graph.add(h_h, self.b_hh, axis=(-1,))
+
+        h = self.graph.add(i_h, h_h)
 
         h = self.graph.tanh(h)
 
@@ -1083,7 +1082,6 @@ class BatchNorm(Module):
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.parameters()
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
@@ -1427,6 +1425,45 @@ class Optimizer:
 # initializations and utitlity functions
 def manual_seed(seed=2357):
     np.random.seed(seed)
+
+def draw_graph(filename='graph', format='svg', graph=G,):
+
+    from graphviz import Digraph
+
+    label = 'Computational Graph of {}'.format(filename)
+    dot = Digraph(filename=filename, directory='assets',
+            format=format, graph_attr={'rankdir': 'LR', 'label': label}, node_attr={'rankdir': 'TB'})
+
+    for cell in graph.nodes:
+
+        # add the op to nodes
+        dot.node(name=str(id(cell['backprop_op'])), label=cell['func'], shape='doublecircle',)
+
+        for input in cell['inputs']:
+
+            # add the input to nodes
+            color = None if input.eval_grad else 'red'
+            dot.node(name=str(id(input)), label='{}'.format(input.node_id), shape='circle', color=color)
+            # forward pass edge from input to op
+            dot.edge(str(id(input)), str(id(cell['backprop_op'])))
+
+            # # backprop pass edge from op to input
+            # if input.eval_grad:
+            #     dot.edge(str(id(cell['backprop_op'])), str(id(input)), color='red')
+
+        for output in cell['outputs']:
+
+            # add the output to nodes
+            dot.node(name=str(id(output)), label='{}'.format(output.node_id), shape='circle')
+            # forward pass edge from op to output
+            dot.edge(str(id(cell['backprop_op'])), str(id(output)))
+
+            # # backward pass edge from output to op
+            # dot.edge(str(id(output)), str(id(cell['backprop_op'])), color='red')
+
+
+    dot.render(cleanup=True)
+
 
 
 # TODO: define regularizations, asserts, batch, utils, GPU support, examples

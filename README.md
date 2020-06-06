@@ -37,15 +37,15 @@ pip install -r requirements.txt
 
 ### Usage
 
-> You can directly work with Parameter objects, ComputationGraph and have fun! The graph engine takes care of the reverse-mode auto-differentiation - the backpropagation algorithm. It is of highest importance that you actually understand how these internal mechanics work together, that's the foremost intended purpose of this library.
+* **You can directly work with Parameter objects, ComputationGraph and have fun!** (The graph engine takes care of the reverse-mode auto-differentiation - the backpropagation algorithm. It is of highest importance that you actually understand how these internal mechanics work together, that's the foremost intended purpose of this library.)
 
 import and initiate
 ````python
 >>> import ai
 >>> x = ai.Parameter((3, 1), eval_grad=False)
->>> a = ai.Parameter((3, 3))
+>>> W = ai.Parameter((3, 3))
 >>> b = ai.Parameter((3, 1), init_zeros=True)
->>> print(a)
+>>> print(W)
 Parameter(shape=(3, 3), eval_grad=True) containing:
 Data: [[-0.01092495  0.00542457 -0.00562512]
  [ 0.00911396 -0.00143499 -0.0160998 ]
@@ -54,7 +54,7 @@ Data: [[-0.01092495  0.00542457 -0.00562512]
 
 do operations
 ````python
->>> y = (a @ x) + b       # supports basic arithmetic
+>>> y = (W @ x) + b       # supports basic arithmetic
 >>> print(y)
 Parameter(shape=(3, 1), eval_grad=True) containing:
 Data: [[-0.00011536]
@@ -66,13 +66,21 @@ backward
 ````python
 >>> y.grad[1, 0] = 1.0
 >>> y.backward()
->>> print(a.grad)
+>>> print(W.grad)
 array([[ 0.        ,  0.        ,  0.        ],
        [ 0.00873683, -0.00623124, -0.00246939],
        [ 0.        ,  0.        ,  0.        ]])
 ````
 
-> Or a more schematic code to use in Deep Learning projects as below.
+see the Computational Graph for the above program
+````python
+>>> ai.draw_graph(filename='linear')
+````
+![Computational Graph](/assets/linear.svg)
+
+* **Or a more schematic code to use in Deep Learning projects as below.**
+ Parameter(single circle) objects interact with function(Double circles) objects. The values of the nodes of parameters are the node ids indexed with the bfs walk of graph during forward pass. The circle with ````None```` doesn't have any backward operation attached to it. The circe with red line doesn't need gradient(inputs, outputs, constants)
+
 
 ````python
 import ai
