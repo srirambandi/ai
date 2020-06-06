@@ -5,7 +5,7 @@ import ai.graph
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node=0, graph=None,
+    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low = -1.0, high = 1.0,
                 mean = 0.0, std = 0.01):
@@ -17,7 +17,7 @@ class Parameter:
 
         # node id - in the bfs like graph walk during forward pass, the node numeber
         # of the path ie., the latest backward op of which this parameter was an output
-        self.node = node
+        self.node_id = node_id
 
         if graph is not None:   # graph object this parameter belongs to
             self.graph = graph
@@ -75,16 +75,20 @@ class Parameter:
     # the backprop ops in reverse order to the forward propagation with chain rule
     def backward(self, grad=None, to=None):
         # assign gradient
+
+        if self.node_id is None:
+            return
+
         if grad is not None:
             self.grad = np.array(grad)
 
         if to is None:
-            stop = 0    # execute backward all the way to start
+            to_node_id = 0    # execute backward all the way to start
         else:
-            stop = to.node + 1  # execute backward  to just before this node
+            to_node_id = to.node_id + 1  # execute backward  to just before this node
 
-        for backprop_op in reversed(self.graph.backprop[stop:int(self.node) + 1]):
-            backprop_op()
+        for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
+            node['backprop_op']()       # executing the back-propagation operation
 
     def __add__(self, other):
 

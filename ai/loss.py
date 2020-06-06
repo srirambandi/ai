@@ -33,7 +33,7 @@ class Loss:
 
     def MSELoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -50,7 +50,7 @@ class Loss:
 
     def CrossEntropyLoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -70,7 +70,7 @@ class Loss:
 
     def BCELoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
@@ -102,7 +102,7 @@ class Loss:
 
     def JSDivLoss(self, y_out, y_true):
 
-        if type(y_true) is not Parameter:
+        if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size

@@ -1,12 +1,14 @@
 import numpy as np
 from ai.parameter import Parameter
 from ai.graph import ComputationalGraph, G
+from ai.module import Module
 
 
 # linear affine transformation: y = Wx + b
 # the general feed-forward network
-class Linear:
+class Linear(Module):
     def __init__(self, input_features=0, output_features=0, bias=True, graph=G):
+        super(Linear, self).__init__()
         self.input_features = input_features  # previous layer units
         self.output_features = output_features  # next layer units
         self.bias = bias
@@ -16,7 +18,6 @@ class Linear:
     def init_params(self):
         self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
-        self.parameters = [self.W, self.b]  # easy access of the layer params
 
     def __str__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
@@ -27,7 +28,7 @@ class Linear:
 
     def forward(self, x):
         # making the input compatible with graph operations
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # flatten the input if it came from layers like Conv2d

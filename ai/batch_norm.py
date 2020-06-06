@@ -1,11 +1,13 @@
 import numpy as np
 from ai.parameter import Parameter
 from ai.graph import ComputationalGraph, G
+from ai.module import Module
 
 
-# bacth normalization layer
-class BatchNorm:
+## bacth normalization layer
+class BatchNorm(Module):
     def __init__(self, hidden_shape, axis=-1, momentum=0.9, bias=True, graph=G):
+        super(BatchNorm, self).__init__()
         self.hidden_shape = hidden_shape  # gamma and beta size; typically D in (D, N) where N is batch size
         self.axis = axis    # along batch channel axis for conv layers and along batches for linear
         self.momentum = momentum
@@ -17,7 +19,6 @@ class BatchNorm:
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.parameters = [self.gamma, self.beta]
         self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
         self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
 
@@ -30,7 +31,7 @@ class BatchNorm:
 
     def forward(self, x):
 
-        if type(x) is not Parameter:
+        if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         if self.graph.grad_mode:    # training

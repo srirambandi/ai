@@ -43,8 +43,8 @@ class Optimizer:
     # a very important step in learning time
     def zero_grad(self):
         # clearing out the backprop operations from the list
-        self.graph.backprop = []
-        self.graph.nodes = 0
+        self.graph.nodes = []
+        self.graph.node_count = 0
 
         # resetting the gradients of model parameters to zero
         for parameter in self.parameters:
