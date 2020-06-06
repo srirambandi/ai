@@ -1426,7 +1426,8 @@ class Optimizer:
 def manual_seed(seed=2357):
     np.random.seed(seed)
 
-def draw_graph(filename='graph', format='svg', graph=G,):
+def draw_graph(filename='graph', format='svg', graph=G):
+    # visualization procedure referred from karpathy's micrograd
 
     from graphviz import Digraph
 

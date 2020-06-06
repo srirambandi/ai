@@ -77,9 +77,10 @@ see the Computational Graph for the above program
 >>> ai.draw_graph(filename='linear')
 ````
 ![Computational Graph](/assets/linear.svg)
+Parameters(single circle) interact with functions(Double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants)
+
 
 * **Or a more schematic code to use in Deep Learning projects as below.**
- Parameter(single circle) objects interact with function(Double circles) objects. The values of the nodes of parameters are the node ids indexed with the bfs walk of graph during forward pass. The circle with ````None```` doesn't have any backward operation attached to it. The circe with red line doesn't need gradient(inputs, outputs, constants)
 
 
 ````python
