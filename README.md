@@ -16,6 +16,7 @@ This library implements:
   - Layers/models - the fundamental [Linear](https://github.com/srirambandi/ai/blob/master/ai/linear.py) layer, [LSTM and RNN](https://github.com/srirambandi/ai/blob/master/ai/sequential_models.py), [Conv2d and ConvTranspose2d](https://github.com/srirambandi/ai/blob/master/ai/convolutional.py), [BatchNorm](https://github.com/srirambandi/ai/blob/master/ai/batch_norm.py) and a generic [Model](https://github.com/srirambandi/ai/blob/master/ai/model.py) template for util functions
   - [Loss](https://github.com/srirambandi/ai/blob/master/ai/loss.py) - Mean Square, Cross Entropy, BCELoss and few other loss functions.
   - [Optimizers](https://github.com/srirambandi/ai/blob/master/ai/optimizer.py) - basic SGD, Adam, Adagrad and Adadelta optimizer functions with choice of momentum.
+  - Vsisualization function to draw the computational graph of any program you write.
   - some example implementations using this library
 
 I will keep updating the library with more explanations, documentation and a similar library in my favourite language c++ soon!
@@ -77,6 +78,8 @@ see the Computational Graph for the above program
 >>> ai.draw_graph(filename='linear')
 ````
 ![Computational Graph](/assets/linear.svg)
+
+
 Parameters(single circle) interact with functions(Double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants)
 
 
