@@ -1,6 +1,6 @@
 # import ai
 
-AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with and end API similar to that of my favourite, Pytorch.
+AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with the end API similar to that of my favourite, Pytorch.
 
 ### About
 
@@ -77,10 +77,10 @@ see the Computational Graph for the above program
 ````python
 >>> ai.draw_graph(filename='linear')
 ````
-![Computational Graph](/assets/linear.svg)
+![Computational Graph of linear](/assets/linear.svg)
 
 
-Parameters(single circle) interact with functions(Double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants)
+Parameters(single circle) interact with functions(Double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants). Also, checkout some other nice renderings in the assets folder.
 
 
 * **Or a more schematic code to use in Deep Learning projects as below.**
