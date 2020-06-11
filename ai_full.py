@@ -404,6 +404,45 @@ class ComputationalGraph:
 
         return output_feature_maps
 
+    def conv2d_faster(self, x, K, s = (1, 1), p = (0, 0)):
+
+        C = x.shape[0]      # number of input channels
+        F = K.shape[0]      # number of output filters
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        i_pad = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        x_pad = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (C, *k, *o, N)
+        strides = (i_pad[0] * i_pad[1] * N, i_pad[1] * N, N, s[0] * i_pad[1] * N, s[1] * N, 1)
+        strides = x_pad.itemsize * np.array(strides)
+        x_stride = np.lib.stride_tricks.as_strided(x_pad, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(x_stride)
+        x_cols = x_cols.reshape(C * k[0] * k[1], o[0] * o[1] * N)
+
+        # convolution operation - matrix multiplication of strided array with kernel
+        out = K.data.reshape(F, -1).dot(x_cols)
+
+        # Reshape the output
+        out = out.reshape(F, *o, N)
+        out = np.ascontiguousarray(out)
+
+        output_feature_maps = Parameter(out.shape, init_zeros=True, graph=self)
+        output_feature_maps.data = out
+
+        if self.grad_mode:
+            def backward():
+                pass
+
+        return output_feature_maps
+
     def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
@@ -871,7 +910,7 @@ class Linear(Module):
 
 # 2D convolutional neural network
 class Conv2d(Module):
-    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, graph=G):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1, 1), padding=(0, 0), bias=True, type=None, graph=G):
         super(Conv2d, self).__init__()
         self.input_channels = input_channels
         self.output_channels = output_channels
@@ -888,6 +927,7 @@ class Conv2d(Module):
         self.stride = stride
         self.padding = padding
         self.bias = bias
+        self.type = type
         self.graph = graph
         self.init_params()
 
@@ -907,8 +947,12 @@ class Conv2d(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
-        # convolution operation
-        out = self.graph.conv2d(x, self.K, self.stride, self.padding)
+        if self.type is None:
+            # convolution operation
+            out = self.graph.conv2d(x, self.K, self.stride, self.padding)
+        else:
+            # convolution operation
+            out = self.graph.conv2d_faster(x, self.K, self.stride, self.padding)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))
