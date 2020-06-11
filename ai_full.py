@@ -406,7 +406,7 @@ class ComputationalGraph:
 
     def conv2d_faster(self, x, K, s = (1, 1), p = (0, 0)):
 
-        C = x.shape[0]      # number of input channels
+        C = K.shape[1]      # number of input channels
         F = K.shape[0]      # number of output filters
         i = x.shape[1:-1]   # input channel shape
         k = K.shape[2:]     # kernel filter shape
@@ -414,17 +414,17 @@ class ComputationalGraph:
 
         # Figure out output dimensions
         o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
-        i_pad = tuple(map(lambda i, p: i + 2*p, i, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
         # padding the input
-        x_pad = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
 
         # get strided view of padded input by picking appropriate strides
         shape = (C, *k, *o, N)
-        strides = (i_pad[0] * i_pad[1] * N, i_pad[1] * N, N, s[0] * i_pad[1] * N, s[1] * N, 1)
-        strides = x_pad.itemsize * np.array(strides)
-        x_stride = np.lib.stride_tricks.as_strided(x_pad, shape=shape, strides=strides)
-        x_cols = np.ascontiguousarray(x_stride)
+        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
         x_cols = x_cols.reshape(C * k[0] * k[1], o[0] * o[1] * N)
 
         # convolution operation - matrix multiplication of strided array with kernel
@@ -439,9 +439,60 @@ class ComputationalGraph:
 
         if self.grad_mode:
             def backward():
-                pass
+                # print('conv2d')
+                if K.eval_grad:
+                    K.grad += output_feature_maps.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape)
+
+                if x.eval_grad:
+
+                    pad_x_grad = np.zeros(pad_x.shape)
+                    for r in range(output_feature_maps.shape[1]):
+                        for c in range(output_feature_maps.shape[2]):
+
+                            # solving gradient for input feature map that caused the elements in r, c position of every output filter
+                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                            _ = output_feature_maps.grad[:, r, c, :].reshape(F, 1, 1, 1, N)
+                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+
+                    # cutting the padded portion from the input-feature-map's gradient
+                    # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], p[1]:pad_x_grad.shape[2]-p[1], :]
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [output_feature_maps], 'backprop_op': lambda: backward()}
+            output_feature_maps.node_id = len(self.nodes)
+            self.nodes.append(node)
 
         return output_feature_maps
+
+    def conv_transpose2d_faster(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+
+        F = K.shape[0]      # number of input filters
+        C = K.shape[1]      # number of output channels
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        pass
+
+        if self.grad_mode:
+            def backward():
+                # print('conv_transpose2d')
+                if K.eval_grad:
+                    pass
+
+                if x.eval_grad:
+                    pass
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [output_image], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return output_image
 
     def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
@@ -475,7 +526,7 @@ class ComputationalGraph:
 
         if self.grad_mode:
             def backward():
-                # print('conv2d')
+                # print('conv_transpose2d')
 
                 pad_output_grad = np.zeros(pad_output_img_shape)
                 pad_output_grad[:, p[0]:pad_output_grad.shape[1]-p[0], p[1]:pad_output_grad.shape[2]-p[1], :] += output_image.grad
