@@ -43,7 +43,7 @@ class Conv2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution operation
-        out = self.graph.conv2d(x, self.K, self.stride, self.padding)
+        out = self.graph.conv2d_faster(x, self.K, self.stride, self.padding)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))
@@ -93,7 +93,7 @@ class ConvTranspose2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution transpose operation
-        out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.a)
+        out = self.graph.conv_transpose2d_faster(x, self.K, self.stride, self.padding, self.a)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))

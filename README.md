@@ -141,7 +141,13 @@ model.save()
 
 ### Implementations
 
-Some Deep Learning popular implementations are already present, and I will add challenging ones soon.
+Examples directory contains some basic popular Deep Learning implementations, and I will add challenging ones soon.
+
+Other examples using this library, resting in their stand-alone repos are:
+
+  * [GAN/Wasserstrin-GAN implementations](https://github.com/srirambandi/GAN)
+  * [Neural Turing Machines implementation](https://github.com/srirambandi/NTM)
+  * ["Deep Learning for Symbolic Mathematics" - paper implementation](https://github.com/srirambandi/symbolic-mathematics) - completing soon
 
 ### Goals
 

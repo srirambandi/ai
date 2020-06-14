@@ -4,7 +4,7 @@ from ai.graph import ComputationalGraph, G
 from ai.module import Module
 
 
-## bacth normalization layer
+# batch normalization layer
 class BatchNorm(Module):
     def __init__(self, hidden_shape, axis=-1, momentum=0.9, bias=True, graph=G):
         super(BatchNorm, self).__init__()

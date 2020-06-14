@@ -7,15 +7,13 @@ import ai.parameter
 class ComputationalGraph:
     def __init__(self, grad_mode=True):
         self.grad_mode = grad_mode
-        self.nodes = []
+        self.nodes = list()
 
-    # operations required for deep learning models and their backward operations
+    # functions required for deep learning models and their respective backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
 
         assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation'
-        shape = (W.data.shape[0], x.data.shape[1])
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.dot(W.data, x.data)
+        out = ai.parameter.Parameter(data=np.dot(W.data, x.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -36,9 +34,7 @@ class ComputationalGraph:
 
     def add(self, x, y, axis=()):    # element wise addition
         # bias should be passed in position of y
-        shape = x.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.add(x.data, y.data)
+        out = ai.parameter.Parameter(data=np.add(x.data, y.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -57,9 +53,7 @@ class ComputationalGraph:
         return out
 
     def subtract(self, x, y, axis=()):   # element wise subtraction
-        shape = x.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.subtract(x.data, y.data)
+        out = ai.parameter.Parameter(data=np.subtract(x.data, y.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -78,10 +72,7 @@ class ComputationalGraph:
         return out
 
     def multiply(self, x, y, axis=()):   # element wise vector multiplication
-        # not for scalar multiply
-        shape = x.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.multiply(x.data, y.data)
+        out = ai.parameter.Parameter(data=np.multiply(x.data, y.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -100,9 +91,7 @@ class ComputationalGraph:
         return out
 
     def divide(self, x, y, axis=()):   # element wise vector division
-        shape = x.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.divide(x.data, y.data)
+        out = ai.parameter.Parameter(data= np.divide(x.data, y.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -125,8 +114,7 @@ class ComputationalGraph:
             res = np.sum(h.data).reshape(1, 1)
         else:
             res = np.sum(h.data, axis=axis, keepdims=True)
-        out = ai.parameter.Parameter(res.shape, init_zeros=True, graph=self)
-        out.data = res
+        out = ai.parameter.Parameter(data=res, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -161,9 +149,7 @@ class ComputationalGraph:
         return out
 
     def log(self, h):   # element wise logarithm
-        shape = h.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.log(h.data)
+        out = ai.parameter.Parameter(data=np.log(h.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -179,24 +165,24 @@ class ComputationalGraph:
 
         return out
 
-    # ayers operations
-    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):     # 2d convolution operation - simple but inefficient implementation
+    # layers functions
+    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
-        fi = K.shape[0]     # number of filters
-        ch = K.shape[1]     # number of input channels
-        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
-        i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
-        batch = x.shape[-1] # batch size of the input
-        output_maps_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # output feature maps shape - (# of filters, o_i, o_j, batch_size)
-        pad_shape = (ch, *(map(lambda i, p: i + 2*p, i, p)), batch)   # padded input feature maps shape - (channels, new_i, new_j, batch_size)
+        # 2d convolution operation - simple but inefficient implementation
+        # Conv2d lasyer uses conv2d_faster for faster computation
+        F = K.shape[0]     # number of output filters
+        C = K.shape[1]     # number of input channels
+        k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
+        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
+        N = x.shape[-1]    # batch size of the input
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
-        out = np.zeros(output_maps_shape)  # output feature maps
+        out = np.zeros((F, *o, N))  # output feature maps
 
-        pad_x = np.zeros(pad_shape)
-        # padded input - copying the actual input onto pad input centre
-        pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.data
-        pad_x = pad_x.reshape(1, *pad_shape)
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+        pad_x = pad_x.reshape(1, *pad_x.shape)
 
         # convolution function computing cross-correlation instead of actual convolution - otherwise have to use
         # flipped kernels which doesn't effect learning
@@ -209,35 +195,34 @@ class ComputationalGraph:
                 # and summing the resulting matrix to produce elements of output maps, over all filters and batches
                 out[:, r, c, :] += np.sum(np.multiply(pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
-        output_feature_maps = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
-        output_feature_maps.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('conv2d')
                 if K.eval_grad:
 
-                    for r in range(output_feature_maps.shape[1]):
-                        for c in range(output_feature_maps.shape[2]):
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
 
                             # solving gradient for each kernel filter that caused the elements in r, c position of every output filter
                             # in every bacth; sketch and think, with input stacked fi times to make computation fast
 
-                            _ = output_feature_maps.grad[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                            _ = out.grad[:, r, c, :].reshape(F, 1, 1, 1, N)
                             # updating the kernel filter set gradient - there will be RxC such updates
                             K.grad += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
                 if x.eval_grad:
 
-                    pad_x_grad = np.zeros(pad_shape)
+                    pad_x_grad = np.zeros((C, *pad_i, N))
 
-                    for r in range(output_feature_maps.shape[1]):
-                        for c in range(output_feature_maps.shape[2]):
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
 
                             # solving gradient for input feature map that caused the elements in r, c position of every output filter
                             # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
 
-                            _ = output_feature_maps.grad[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                            _ = out.grad[:, r, c, :].reshape(F, 1, 1, 1, N)
                             pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
 
                     # cutting the padded portion from the input-feature-map's gradient
@@ -246,24 +231,89 @@ class ComputationalGraph:
 
                 # return (K.grad, x.grad)
 
-            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [output_feature_maps], 'backprop_op': lambda: backward()}
-            output_feature_maps.node_id = len(self.nodes)
+            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
             self.nodes.append(node)
 
-        return output_feature_maps
+        return out
 
-    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):     # 2d convolution transpose operation - simple but inefficient implementation
+    def conv2d_faster(self, x, K, s = (1, 1), p = (0, 0)):
+        # faster 2d convolution operation
+
+        C = K.shape[1]      # number of input channels
+        F = K.shape[0]      # number of output filters
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (C, *k, *o, N)
+        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
+        x_cols = x_cols.reshape(C * k[0] * k[1], o[0] * o[1] * N)
+
+        # convolution operation - matrix multiplication of strided array with kernel
+        out = K.data.reshape(F, -1).dot(x_cols)
+
+        # Reshape the output
+        out = out.reshape(F, *o, N)
+        out = np.ascontiguousarray(out)
+
+        out = ai.parameter.Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('conv2d')
+                if K.eval_grad:
+                    K.grad += np.ascontiguousarray(out.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape))
+
+                if x.eval_grad:
+
+                    pad_x_grad = np.zeros(pad_x.shape)
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
+
+                            # solving gradient for input feature map that caused the elements in r, c position of every output filter
+                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                            _ = out.grad[:, r, c, :].reshape(F, 1, 1, 1, N)
+                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+
+                    # cutting the padded portion from the input-feature-map's gradient
+                    # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], p[1]:pad_x_grad.shape[2]-p[1], :]
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
+    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
-        fi = K.shape[0]     # number of filters - here number of feature input planes
-        ch = K.shape[1]     # number of input channels - here number of image output planes
-        k = K.shape[2:]     # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
-        i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
-        batch = x.shape[-1] # batch size of the input
-        output_shape = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a))) # output feature maps shape - (# of channels, o_i, o_j, batch_size)
-        pad_output_img_shape = (ch, *(map(lambda o, p: o + 2*p, output_shape, p)), batch)   # padded input feature maps shape - (filters, new_i, new_j, batch_size)
+        # 2d convolutional transpose operation - simple but inefficient implementation
+        # ConvTranspose2d lasyer uses conv_transpose2d_faster for faster computation
+        F = K.shape[0]     # number of filters - here number of feature input planes
+        C = K.shape[1]     # number of input channels - here number of image output planes
+        k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
+        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
+        N = x.shape[-1]    # batch size of the input
+        o = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a)))
+        pad_o = tuple(map(lambda o, p: o + 2*p, o, p))
 
-        out = np.zeros(pad_output_img_shape)  # output feature maps
+        pad_out = np.zeros((C, *pad_o, N))  # output feature maps
 
         # convolution function computing cross-correlation instead of actual convolution like conv2d
         kernel = K.data.reshape(*K.shape, 1)
@@ -272,23 +322,21 @@ class ComputationalGraph:
             for c in range(x.shape[2]):
 
                 # computing output image feature map by convolving across each element of input feature map with kernel
-                _ = x.data[:, r, c, :].reshape(fi, 1, 1, 1, batch)
-                out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
+                _ = x.data[:, r, c, :].reshape(F, 1, 1, 1, N)
+                pad_out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, kernel), axis=0)
 
         # cutting the padded portion from the input-feature-map's gradient
         # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-        out = out[:, p[0]:out.shape[1]-p[0], p[1]:out.shape[2]-p[1], :]
+        out = pad_out[:, p[0]:pad_out.shape[1]-p[0], p[1]:pad_out.shape[2]-p[1], :]
 
-        output_image = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
-        output_image.data = out    # any set of output feature map from the batch, has same numeber of maps as filters in the kernel set
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
-                # print('conv2d')
+                # print('conv_transpose2d')
 
-                pad_output_grad = np.zeros(pad_output_img_shape)
-                pad_output_grad[:, p[0]:pad_output_grad.shape[1]-p[0], p[1]:pad_output_grad.shape[2]-p[1], :] += output_image.grad
-                pad_output_grad = pad_output_grad.reshape(1, *pad_output_img_shape)
+                pad_out_grad = np.pad(out.grad, ((0, 0), p, p, (0, 0)), mode='constant')
+                pad_out_grad = pad_out_grad.reshape(1, *pad_out_grad.shape)
 
                 if K.eval_grad:
 
@@ -296,9 +344,9 @@ class ComputationalGraph:
                         for c in range(x.shape[2]):
 
                             # solving gradient for each kernel filter
-                            _ = x.data[:, r, c, :].reshape(fi, 1, 1, 1, batch)
+                            _ = x.data[:, r, c, :].reshape(F, 1, 1, 1, N)
                             # updating the kernel filter set gradient - there will be RxC such updates
-                            K.grad += np.sum(np.multiply(_, pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
+                            K.grad += np.sum(np.multiply(_, pad_out_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
                 if x.eval_grad:
 
@@ -306,29 +354,88 @@ class ComputationalGraph:
                         for c in range(x.shape[2]):
 
                             # solving gradient for input feature map
-                            x.grad[:, r, c, :] += np.sum(np.multiply(pad_output_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
+                            x.grad[:, r, c, :] += np.sum(np.multiply(pad_out_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :], kernel), axis=(1, 2, 3))
 
                 # return (K.grad, x.grad)
 
-            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [output_image], 'backprop_op': lambda: backward()}
+            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
-        return output_image
+        return out
+
+    def conv_transpose2d_faster(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+        # faster 2d convolution operation
+
+        F = K.shape[0]      # number of input filters
+        C = K.shape[1]      # number of output channels
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        o = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a)))
+        pad_o = tuple(map(lambda o, p: o + 2*p, o, p))
+
+        pad_out = np.zeros((C, *pad_o, N))
+
+        for r in range(x.shape[1]):
+            for c in range(x.shape[2]):
+
+                # computing output image feature map by convolving across each element of input feature map with kernel
+                _ = x.data[:, r, c, :].reshape(F, 1, 1, 1, N)
+                pad_out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+
+        # cutting the padded portion from the input-feature-map's gradient
+        # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+        out = pad_out[:, p[0]:pad_out.shape[1]-p[0], p[1]:pad_out.shape[2]-p[1], :]
+
+        out = ai.parameter.Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('conv_transpose2d')
+
+                # padding the output gradient
+                pad_out_grad = np.pad(out.grad, ((0, 0), p, p, (0, 0)), mode='constant')
+
+                # get strided view of padded output gradient by picking appropriate strides
+                shape = (C, *k, *i, N)
+                strides = (pad_o[0] * pad_o[1] * N, pad_o[1] * N, N, s[0] * pad_o[1] * N, s[1] * N, 1)
+                strides = pad_out_grad.itemsize * np.array(strides)
+                stride_out_grad = np.lib.stride_tricks.as_strided(pad_out_grad, shape=shape, strides=strides)
+                out_grad_cols = np.ascontiguousarray(stride_out_grad)
+                out_grad_cols = out_grad_cols.reshape(C * k[0] * k[1], i[0] * i[1] * N)
+
+                if K.eval_grad:
+                    K.grad += np.ascontiguousarray(x.data.reshape(F, -1).dot(out_grad_cols.T).reshape(K.shape))
+
+                if x.eval_grad:
+                    x_grad = K.data.reshape(F, -1).dot(out_grad_cols)
+
+                    # Reshape the gradient
+                    x_grad = x_grad.reshape(F, *i, N)
+                    x.grad += np.ascontiguousarray(x_grad)
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
 
     def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
-        fi = x.shape[0]     # number of input filter planes
-        i = x.shape[1:-1]   # input shape of any channel of the input feature map before padding
-        batch = x.shape[-1]
-        pool_shape = (fi, *(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p)), batch) # shape after maxpool
-        pad_shape = (fi, *(map(lambda i, p: i + 2*p, i, p)), batch)  # padded input shape
+        F = x.shape[0]     # number of input filter planes
+        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
+        N = x.shape[-1]    # Batch size
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
-        out = np.zeros((pool_shape))
+        out = np.zeros((F, *o, N))
 
-        pad_x = np.zeros(pad_shape)
-        pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :] += x.data # copying the input onto padded matrix
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
 
         for r in range(out.shape[1]):       # convolving operation here(kinda)
             for c in range(out.shape[2]):   # traversing rous and columns of feature map
@@ -344,26 +451,25 @@ class ComputationalGraph:
                     # if multiple 0s occur and max is 0 then it shouldn't count. weeding out such cases by assigning
                     # NaN and later zeroing out their gradient locations too; this was a bug which is fixed now :)
                     out[:, r, c, :][out[:, r, c, :] == 0] = np.nan
-                    _ -= out[:, r, c, :].reshape(fi, 1, 1, batch)
+                    _ -= out[:, r, c, :].reshape(F, 1, 1, N)
                     _[np.isnan(_)] = -1     # removing all zeros locations
                     # can't use '_' object from above for the below assignment, so using the entire notation :(
                     pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
                     out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
-        pool_maps = ai.parameter.Parameter(out.shape, init_zeros=True, graph=self)
-        pool_maps.data = out
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('maxpool2d')
                 if x.eval_grad:
 
-                    for r in range(pool_maps.shape[1]):
-                        for c in range(pool_maps.shape[2]):
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
 
                             # multiplying each 'mask' like volume(single 1s in the volumes along all batches) with the gradient
                             # at region whose value was caused by the mask region's input
-                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= pool_maps.grad[:, r, c, :].reshape(fi, 1, 1, batch)
+                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= out.grad[:, r, c, :].reshape(F, 1, 1, N)
 
                     # cutting the padded portion from the input gradient
                     # and updating the gradient of actual input(non-padded) - unpadding and updating
@@ -371,25 +477,27 @@ class ComputationalGraph:
 
                 # return (x.grad)
 
-            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [pool_maps], 'backprop_op': lambda: backward()}
+            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
-        return pool_maps
+        return out
 
     def dropout(self, x, p=0.5):    # dropout regularization layer!
         # useful: https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
-        shape = x.shape
-        # drop activation units randomly during training
-        # a unit is present with probability p
+
         if self.grad_mode:
-            dropout_mask = np.random.binomial(np.ones(shape, dtype='int64'), p)
-        # scale activations of units by p during testing
-        # units are always present
+            # drop activation units randomly during training
+            # a unit is present with probability p
+            dropout_mask = np.random.binomial(np.ones(x.shape, dtype='int64'), p)
+
         else:
+            # scale activations of units by p during testing
+            # units are always present
             dropout_mask = p
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = dropout_mask*x.data    # drop/sclae
+
+        # drop/sclae
+        out = ai.parameter.Parameter(data=dropout_mask*x.data, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -407,9 +515,7 @@ class ComputationalGraph:
 
     # hidden and output units activations
     def relu(self, z):      # element wise ReLU activations
-        shape = z.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.maximum(z.data, 0)
+        out = ai.parameter.Parameter(data=np.maximum(z.data, 0), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -427,9 +533,7 @@ class ComputationalGraph:
         return out
 
     def lrelu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
-        shape = z.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.maximum(z.data, alpha * z.data)
+        out = ai.parameter.Parameter(data=np.maximum(z.data, alpha * z.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -486,9 +590,7 @@ class ComputationalGraph:
         return out
 
     def tanh(self, z):      # element wise tanh activations
-        shape = z.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.tanh(z.data)
+        out = ai.parameter.Parameter(data=np.tanh(z.data), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -507,10 +609,9 @@ class ComputationalGraph:
     # data manipulation/view functions
     def split(self, W, sections=1, axis=0):
         outs = np.split(W.data, sections, axis=axis)
-        outs_list = []
+        outs_list = list()
         for e in outs:
-            o = ai.parameter.Parameter(e.shape, init_zeros=True, graph=self)
-            o.data = e
+            o = ai.parameter.Parameter(data=e, graph=self)
             outs_list.append(o)
 
         if self.grad_mode:
@@ -528,9 +629,7 @@ class ComputationalGraph:
         return outs_list
 
     def T(self, x):     # transpose
-        shape = tuple(reversed(x.shape))
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = x.data.T
+        out = ai.parameter.Parameter(data=x.data.T, graph=self)
 
         if self.grad_mode:
             def backward():

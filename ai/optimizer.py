@@ -16,8 +16,8 @@ class Optimizer:
         self.ro = ro
         self.graph = graph
         self.t = 0  # iteration count
-        self.m = [] # (momentumAdam/Adagrad/Adadelta)
-        self.v = [] # (Adam/Adadelta)
+        self.m = list() # (momentumAdam/Adagrad/Adadelta)
+        self.v = list() # (Adam/Adadelta)
 
         if self.optim_fn != 'SGD' or self.momentum > 0.0:
 
@@ -43,7 +43,7 @@ class Optimizer:
     # a very important step in learning time
     def zero_grad(self):
         # clearing out the backprop operations from the list
-        self.graph.nodes = []
+        self.graph.nodes = list()
         self.graph.node_count = 0
 
         # resetting the gradients of model parameters to zero
