@@ -284,13 +284,16 @@ class ComputationalGraph:
 
     def power(self, h, exp):   # element wise power
         out = Parameter(h.shape, init_zeros=True, graph=self)
-        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data, exp) + 1e-6     # numerical stability for -ve power
+        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-6, exp)     # numerical stability for -ve power
 
         if self.grad_mode:
             def backward():
                 # print('power')
                 if h.eval_grad:
-                    h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
+                    if exp  >= 0:
+                        h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
+                    else:
+                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-6, exp - 1))
 
                 # return h.grad
 
