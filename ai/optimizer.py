@@ -5,7 +5,7 @@ from ai.graph import ComputationalGraph, G
 
 # Optimizers to take that drunken step down the hill
 class Optimizer:
-    def __init__(self, parameters, optim_fn='SGD', lr=3e-4, momentum=0.0, eps=1e-8, beta1=0.9, beta2=0.999, ro=0.95, graph=G):
+    def __init__(self, parameters, optim_fn='SGD', lr=3e-4, momentum=0.9, eps=1e-8, beta1=0.9, beta2=0.999, rho=0.95, graph=G):
         self.parameters = parameters  # a list of all layers of the model
         self.optim_fn = optim_fn    # the optimizing function(SGD, Adam, Adagrad, RMSProp)
         self.lr = lr    # alpha: size of the step to update the parameters
@@ -13,7 +13,7 @@ class Optimizer:
         self.eps = eps
         self.beta1 = beta1
         self.beta2 = beta2
-        self.ro = ro
+        self.rho = rho
         self.graph = graph
         self.t = 0  # iteration count
         self.m = list() # (momentumAdam/Adagrad/Adadelta)
@@ -51,6 +51,7 @@ class Optimizer:
             parameter.grad = np.zeros(parameter.shape)
 
     def step(self):
+        # useful: https://arxiv.org/pdf/1609.04747.pdf
 
         if self.optim_fn == 'SGD':
             return self.SGD()
@@ -59,8 +60,9 @@ class Optimizer:
         elif self.optim_fn == 'Adagrad':
             return self.Adagrad()
         elif self.optim_fn == 'Adadelta':
-            self.eps = 1e-6
             return self.Adadelta()
+        elif self.optim_fn == 'RMSProp':
+            return self.RMSProp()
         else:
           raise 'No such optimization function'
 
@@ -73,18 +75,14 @@ class Optimizer:
 
             if self.momentum > 0.0:
                 # momentum update
-                delta = self.momentum * self.m[p] - self.lr * self.parameters[p].grad
-
-                # store delta for next iteration
-                self.m[p] = delta
+                self.m[p] = self.momentum * self.m[p] + self.lr * self.parameters[p].grad
 
                 # Update parameters with momentum SGD
-                self.parameters[p].data += delta
+                self.parameters[p].data -= self.m[p]
 
             else:
                 # Update parameters with vanilla SGD
                 self.parameters[p].data -= self.lr * self.parameters[p].grad
-
 
     # Adam optimization function
     def Adam(self):
@@ -131,15 +129,29 @@ class Optimizer:
         for p in range(len(self.parameters)):
             
             # Accumulate Gradient:
-            self.m[p] = self.ro * self.m[p] + (1 - self.ro) * self.parameters[p].grad * self.parameters[p].grad
+            self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
 
             # Compute Update:
             delta = -np.sqrt((self.v[p] + self.eps) / (self.m[p] + self.eps)) * self.parameters[p].grad
 
             # Accumulate Updates:
-            self.v[p] = self.ro * self.v[p] + (1 - self.ro) * delta * delta
+            self.v[p] = self.rho * self.v[p] + (1 - self.rho) * delta * delta
 
             # Apply Update:
             self.parameters[p].data += delta
-
+            
+    # RMSProp optimization function
+    def RMSProp(self):
+        # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
+        if self.t < 1: print('using RMSProp')
+            
+        self.t += 1
+        for p in range(len(self.parameters)):
+            
+            # Accumulating moving average of the square of the Gradient:
+            self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
+            
+            # Apply Update:
+            self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.m[p]) + self.eps)
+            
     #define optimizers

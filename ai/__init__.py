@@ -20,6 +20,7 @@ from ai.batch_norm import BatchNorm
 from ai.loss import Loss
 from ai.optimizer import Optimizer
 from ai.module import Module
+from ai.utils import draw_graph, clip_grad_value
 
 
 # initializations and utitlity functions

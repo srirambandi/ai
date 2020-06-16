@@ -75,7 +75,7 @@ array([[ 0.        ,  0.        ,  0.        ],
 
 see the Computational Graph for the above program
 ````python
->>> ai.utils.draw_graph(filename='linear')
+>>> ai.draw_graph(filename='linear')
 ````
 ![Computational Graph of linear](/assets/linear.svg)
 
