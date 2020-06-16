@@ -1441,8 +1441,6 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            # clip gradients
-            self.parameters[p].grad = np.clip(self.parameters[p].grad, -5.0, 5.0)
 
             if self.momentum > 0.0:
                 # momentum update
@@ -1466,9 +1464,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            # clip gradients
-            self.parameters[p].grad = np.clip(self.parameters[p].grad, -5.0, 5.0)
-
+            
             # Update biased first moment estimate
             self.m[p] = self.beta1 * self.m[p] + (1 - self.beta1) * self.parameters[p].grad
 
@@ -1490,9 +1486,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            # clip gradients
-            self.parameters[p].grad = np.clip(self.parameters[p].grad, -5.0, 5.0)
-
+            
             # update memory
             self.m[p] += self.parameters[p].grad * self.parameters[p].grad
 
@@ -1506,9 +1500,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            # clip gradients
-            self.parameters[p].grad = np.clip(self.parameters[p].grad, -5.0, 5.0)
-
+            
             # Accumulate Gradient:
             self.m[p] = self.ro * self.m[p] + (1 - self.ro) * self.parameters[p].grad * self.parameters[p].grad
 
@@ -1528,6 +1520,8 @@ class Optimizer:
 def manual_seed(seed=2357):
     np.random.seed(seed)
 
+
+# draw the Computational Graph of the ai program
 def draw_graph(filename='graph', format='svg', graph=G):
     # visualization procedure referred from karpathy's micrograd
 
@@ -1564,8 +1558,15 @@ def draw_graph(filename='graph', format='svg', graph=G):
             # # backward pass edge from output to op
             # dot.edge(str(id(output)), str(id(cell['backprop_op'])), color='red')
 
-
     dot.render(cleanup=True)
+    
+
+# clip the gradients of parameters by value
+def clip_grad_value(parameters, clip_value):
+    
+    for p in parameters:
+        # clip gradients by value
+        p.grad = np.clip(p.grad, -clip_value, clip_value)
 
 
 
