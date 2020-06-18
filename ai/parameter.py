@@ -124,7 +124,7 @@ class Parameter:
 
         return self.graph.dot(self, other)
 
-    def __truediv_(self, other):
+    def __truediv__(self, other):
 
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
@@ -133,7 +133,7 @@ class Parameter:
 
         return self.graph.divide(self, other)
 
-    def __pow_(self, other, modulo):
+    def __pow__(self, other):
         return self.graph.power(self, other)
 
     # transpose
