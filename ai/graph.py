@@ -132,7 +132,7 @@ class ComputationalGraph:
 
     def power(self, h, exp):   # element wise power
         out = ai.parameter.Parameter(h.shape, init_zeros=True, graph=self)
-        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-6, exp)     # numerical stability for -ve power
+        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
 
         if self.grad_mode:
             def backward():
@@ -141,7 +141,7 @@ class ComputationalGraph:
                     if exp  >= 0:
                         h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
                     else:
-                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-6, exp - 1))
+                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-8, exp - 1))
 
                 # return h.grad
 
@@ -152,13 +152,13 @@ class ComputationalGraph:
         return out
 
     def log(self, h):   # element wise logarithm
-        out = ai.parameter.Parameter(data=np.log(h.data), graph=self)
+        out = ai.parameter.Parameter(data=np.log(h.data + 1e-8), graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('log')
                 if h.eval_grad:
-                    h.grad += np.multiply(out.grad, np.divide(1.0, h.data))
+                    h.grad += np.multiply(out.grad, np.divide(1.0, h.data + 1e-8))
 
                 # return h.grad
 

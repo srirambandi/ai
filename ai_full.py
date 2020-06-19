@@ -243,15 +243,15 @@ class ComputationalGraph:
         return out
 
     def divide(self, x, y, axis=()):   # element wise vector division
-        out = Parameter(data= np.divide(x.data, y.data), graph=self)
+        out = Parameter(data= np.divide(x.data, y.data + 1e-8), graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('divide')
                 if x.eval_grad:
-                    x.grad += np.multiply(out.grad, np.divide(1.0, y.data))
+                    x.grad += np.multiply(out.grad, np.divide(1.0, y.data + 1e-8))
                 if y.eval_grad:
-                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
+                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data + 1e-8))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -284,7 +284,7 @@ class ComputationalGraph:
 
     def power(self, h, exp):   # element wise power
         out = Parameter(h.shape, init_zeros=True, graph=self)
-        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-6, exp)     # numerical stability for -ve power
+        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
 
         if self.grad_mode:
             def backward():
@@ -293,7 +293,7 @@ class ComputationalGraph:
                     if exp  >= 0:
                         h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
                     else:
-                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-6, exp - 1))
+                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-8, exp - 1))
 
                 # return h.grad
 
@@ -304,13 +304,13 @@ class ComputationalGraph:
         return out
 
     def log(self, h):   # element wise logarithm
-        out = Parameter(data=np.log(h.data), graph=self)
+        out = Parameter(data=np.log(h.data + 1e-8), graph=self)     # numerical stability for values ~0
 
         if self.grad_mode:
             def backward():
                 # print('log')
                 if h.eval_grad:
-                    h.grad += np.multiply(out.grad, np.divide(1.0, h.data))
+                    h.grad += np.multiply(out.grad, np.divide(1.0, h.data + 1e-8))
 
                 # return h.grad
 
@@ -1462,7 +1462,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Update biased first moment estimate
             self.m[p] = self.beta1 * self.m[p] + (1 - self.beta1) * self.parameters[p].grad
 
@@ -1484,7 +1484,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # update memory
             self.m[p] += self.parameters[p].grad * self.parameters[p].grad
 
@@ -1498,7 +1498,7 @@ class Optimizer:
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Accumulate Gradient:
             self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
 
@@ -1510,21 +1510,21 @@ class Optimizer:
 
             # Apply Update:
             self.parameters[p].data += delta
-            
+
     # RMSProp optimization function
     def RMSProp(self):
         # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
         if self.t < 1: print('using RMSProp')
-            
+
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Accumulating moving average of the square of the Gradient:
             self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
-            
+
             # Apply Update:
             self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.m[p]) + self.eps)
-            
+
     #define optimizers
 
 
@@ -1570,11 +1570,11 @@ def draw_graph(filename=None, format='svg', graph=G):
             # dot.edge(str(id(output)), str(id(cell['backprop_op'])), color='red')
 
     dot.render(format=format, filename=filename, directory='assets', cleanup=True)
-    
+
 
 # clip the gradients of parameters by value
 def clip_grad_value(parameters, clip_value):
-    
+
     for p in parameters:
         # clip gradients by value
         p.grad = np.clip(p.grad, -clip_value, clip_value)
