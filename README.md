@@ -19,7 +19,7 @@ This library implements:
   - Vsisualization function to draw the computational graph of any program you write.
   - some example implementations using this library
 
-I will keep updating the library with more explanations, documentation and a similar library in my favourite language c++ soon!
+I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++ soon!
 
 ### Installation
 
@@ -38,7 +38,9 @@ pip install -r requirements.txt
 
 ### Usage
 
-* **You can directly work with Parameter objects, ComputationGraph and have fun!** (The graph engine takes care of the reverse-mode auto-differentiation - the backpropagation algorithm. It is of highest importance that you actually understand how these internal mechanics work together, that's the foremost intended purpose of this library.)
+1. **You can directly work with Parameter objects, ComputationGraph and have fun!**
+
+(The graph engine takes care of the reverse-mode auto-differentiation - the backpropagation algorithm. It is of highest importance that you actually understand how these internal mechanics work together, that's the foremost intended purpose of this library.)
 
 import and initiate
 ````python
@@ -52,7 +54,6 @@ Data: [[-0.01092495  0.00542457 -0.00562512]
  [ 0.00911396 -0.00143499 -0.0160998 ]
  [-0.01601084  0.01146977  0.00797995]]
 ````
-
 do operations
 ````python
 >>> y = (W @ x) + b       # supports basic arithmetic
@@ -62,7 +63,6 @@ Data: [[-0.00011536]
  [ 0.00012833]
  [-0.00023106]]
 ````
-
 backward
 ````python
 >>> y.grad[1, 0] = 1.0
@@ -72,7 +72,6 @@ array([[ 0.        ,  0.        ,  0.        ],
        [ 0.00873683, -0.00623124, -0.00246939],
        [ 0.        ,  0.        ,  0.        ]])
 ````
-
 see the Computational Graph for the above program
 ````python
 >>> ai.draw_graph(filename='linear')
@@ -83,7 +82,7 @@ see the Computational Graph for the above program
 Parameters(single circles) interact with functions(double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants). Also, checkout some other nice renderings in the assets folder.
 
 
-* **Or a more schematic code to use in Deep Learning projects as below.**
+2 **Or a more schematic code to use in Deep Learning projects as below.**
 
 
 ````python
@@ -95,7 +94,7 @@ ai.manual_seed(2357)
 def data_generator(file):
     yield data_batch
 
-class Net(ai.Model):
+class Net(ai.Module):
     def __init__(self):
         self.conv = ai.Conv2d(3, 16, kernel=3, stride=1, padding=0)
         self.fc = ai.Linear(x, 10)
@@ -113,6 +112,7 @@ print(model)
 L = ai.Loss('CrossEntropyLoss')
 optim = ai.Optimizer(model.parameters(), optim_fn='Adam', lr=1e-3)
 
+# inference
 def evaluate():
     # testing and inference
     ai.G.grad_mode = False
@@ -123,15 +123,17 @@ def evaluate():
 
 # some control parameters
 
-while condition:
-    # training loop
+# training loop
+while not converged:
 
+    # get scores and compute gradients
     scores = model.forward(train_input)
     loss = L.loss(scores, outputs)
     loss.backward()
 
     # logging info
 
+    # update weights
     optim.step()
     optim.zero_grad()
 
@@ -147,13 +149,13 @@ Other examples using this library, resting in their stand-alone repos are:
 
   * [GAN/Wasserstrin-GAN implementations](https://github.com/srirambandi/GAN)
   * [Neural Turing Machines implementation](https://github.com/srirambandi/NTM)
-  * ["Deep Learning for Symbolic Mathematics" - paper implementation](https://github.com/srirambandi/symbolic-mathematics) - completing soon
+  * ["Deep Learning for Symbolic Mathematics" - paper implementation](https://github.com/srirambandi/symbolic-mathematics) - complete soon
 
 ### Goals
 
-To implement other learning paradigms besides sipervised such as, Unsupervised and Reinforcement Learning algorithms into the library.
+To implement other learning paradigms besides Supervised such as, Unsupervised and Reinforcement Learning algorithms into the library.
 
-I want to be able to implement every model in the below Deep Learning Toolkit picture [source tweet](https://twitter.com/OriolVinyalsML/status/1212422497339105280?s=20)
+I want to implement every model in the below Deep Learning Toolkit picture [source tweet](https://twitter.com/OriolVinyalsML/status/1212422497339105280?s=20)
 
 ![DL Toolkit](/assets/dl_toolbox.jpeg)
 
