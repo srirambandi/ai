@@ -91,15 +91,15 @@ class ComputationalGraph:
         return out
 
     def divide(self, x, y, axis=()):   # element wise vector division
-        out = ai.parameter.Parameter(data= np.divide(x.data, y.data), graph=self)
+        out = ai.parameter.Parameter(data= np.divide(x.data, y.data + 1e-8), graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('divide')
                 if x.eval_grad:
-                    x.grad += np.multiply(out.grad, np.divide(1.0, y.data))
+                    x.grad += np.multiply(out.grad, np.divide(1.0, y.data + 1e-8))
                 if y.eval_grad:
-                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
+                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data + 1e-8))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
