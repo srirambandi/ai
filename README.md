@@ -82,7 +82,7 @@ see the Computational Graph for the above program
 Parameters(single circles) interact with functions(double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants). Also, checkout some other nice renderings in the assets folder.
 
 
-2 **Or a more schematic code to use in Deep Learning projects as below.**
+2. **Or a more schematic code to use in Deep Learning projects as below.**
 
 
 ````python

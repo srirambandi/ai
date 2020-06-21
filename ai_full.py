@@ -944,7 +944,7 @@ class Linear(Module):
         self.init_params()
 
     def init_params(self):
-        root_k = np.divide(1. / self.input_features)
+        root_k = np.sqrt(1. / self.input_features)
         self.W = Parameter((self.output_features, self.input_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
@@ -1083,7 +1083,7 @@ class LSTM(Module):
         self.init_params()
 
     def init_params(self):
-        root_k = np.divide(1. / self.hidden_size)
+        root_k = np.sqrt(1. / self.hidden_size)
         self.W_ih = Parameter((4*self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # input to hidden weight volume
         self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # hidden to hidden weight volume
         self.b_ih = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
@@ -1140,7 +1140,7 @@ class RNN(Module):
         self.init_params()
 
     def init_params(self):
-        root_k = np.divide(1. / self.hidden_size)
+        root_k = np.sqrt(1. / self.hidden_size)
         self.W_ih = Parameter((self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
         self.W_hh = Parameter((self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
         self.b_ih = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
