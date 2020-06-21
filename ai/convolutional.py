@@ -27,8 +27,9 @@ class Conv2d(Module):
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.output_channels, *self.filter_size), graph=self.graph)
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
+        root_k = np.sqrt(1. / (self.input_channels * self.kernel_size[0] * self.kernel_size[1]))
+        self.K = Parameter((self.output_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
@@ -77,8 +78,9 @@ class ConvTranspose2d(Module):
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.input_channels, *self.filter_size), graph=self.graph)
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
+        root_k = np.sqrt(1. / (self.output_channels * self.kernel_size[0] * self.kernel_size[1]))
+        self.K = Parameter((self.input_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(

@@ -15,10 +15,11 @@ class LSTM(Module):
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((4*self.hidden_size, self.input_size), graph=self.graph)    # input to hidden weight volume
-        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), graph=self.graph)   # hidden to hidden weight volume
-        self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
-        self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
+        root_k = np.divide(1. / self.hidden_size)
+        self.W_ih = Parameter((4*self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # input to hidden weight volume
+        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # hidden to hidden weight volume
+        self.b_ih = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
+        self.b_hh = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
 
     def __str__(self):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
@@ -71,10 +72,11 @@ class RNN(Module):
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((self.hidden_size, self.input_size), graph=self.graph)
-        self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
-        self.b_ih = Parameter((self.hidden_size, 1), graph=self.graph)    # not much use
-        self.b_hh = Parameter((self.hidden_size, 1), graph=self.graph)
+        root_k = np.divide(1. / self.hidden_size)
+        self.W_ih = Parameter((self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.W_hh = Parameter((self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b_ih = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
+        self.b_hh = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('RNN(input_size={}, hidden_size={}, bias={})'.format(

@@ -16,8 +16,9 @@ class Linear(Module):
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
-        self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
+        root_k = np.divide(1. / self.input_features)
+        self.W = Parameter((self.output_features, self.input_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
+        self.b = Parameter((self.output_features, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
     def __str__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(

@@ -15,8 +15,8 @@ import numpy as np
 class Parameter:
     def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
-                uniform=False, low = -1.0, high = 1.0,
-                mean = 0.0, std = 0.01):
+                uniform=False, low=-1.0, high = 1.0,
+                normal=False, mean=0.0, std=0.01):
 
         # properties
         self.shape = shape
@@ -64,11 +64,12 @@ class Parameter:
 
         elif self.uniform:
             # random initiation with uniform distribution
-            self.data = (self.high - self.low) * np.random.rand(*self.shape) + self.low
+            self.data = np.random.uniform(self.low, self.high, self.shape)
 
         else:
             # random initiation with gaussian distribution
-            self.data = self.std*np.random.randn(*self.shape) + self.mean
+            self.normal = True
+            self.data = np.random.normal(mean, std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)
@@ -943,8 +944,9 @@ class Linear(Module):
         self.init_params()
 
     def init_params(self):
-        self.W = Parameter((self.output_features, self.input_features), graph=self.graph)  # weight volume
-        self.b = Parameter((self.output_features, 1), init_zeros=True, graph=self.graph)   # bias vector
+        root_k = np.divide(1. / self.input_features)
+        self.W = Parameter((self.output_features, self.input_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
+        self.b = Parameter((self.output_features, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
     def __str__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
@@ -994,8 +996,9 @@ class Conv2d(Module):
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.output_channels, *self.filter_size), graph=self.graph)
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
+        root_k = np.sqrt(1. / (self.input_channels * self.kernel_size[0] * self.kernel_size[1]))
+        self.K = Parameter((self.output_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
@@ -1044,8 +1047,9 @@ class ConvTranspose2d(Module):
         self.init_params()
 
     def init_params(self):
-        self.K = Parameter((self.input_channels, *self.filter_size), graph=self.graph)
-        self.b = Parameter((self.output_channels, 1, 1, 1), init_zeros=True, graph=self.graph)
+        root_k = np.sqrt(1. / (self.output_channels * self.kernel_size[0] * self.kernel_size[1]))
+        self.K = Parameter((self.input_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(
@@ -1079,10 +1083,11 @@ class LSTM(Module):
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((4*self.hidden_size, self.input_size), graph=self.graph)    # input to hidden weight volume
-        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), graph=self.graph)   # hidden to hidden weight volume
-        self.b_ih = Parameter((4*self.hidden_size, 1), graph=self.graph)  # input to hidden bias vector
-        self.b_hh = Parameter((4*self.hidden_size, 1), graph=self.graph)  # hidden to hidden bias vector
+        root_k = np.divide(1. / self.hidden_size)
+        self.W_ih = Parameter((4*self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # input to hidden weight volume
+        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # hidden to hidden weight volume
+        self.b_ih = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
+        self.b_hh = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
 
     def __str__(self):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
@@ -1135,10 +1140,11 @@ class RNN(Module):
         self.init_params()
 
     def init_params(self):
-        self.W_ih = Parameter((self.hidden_size, self.input_size), graph=self.graph)
-        self.W_hh = Parameter((self.hidden_size, self.hidden_size), graph=self.graph)
-        self.b_ih = Parameter((self.hidden_size, 1), graph=self.graph)    # not much use
-        self.b_hh = Parameter((self.hidden_size, 1), graph=self.graph)
+        root_k = np.divide(1. / self.hidden_size)
+        self.W_ih = Parameter((self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.W_hh = Parameter((self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b_ih = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
+        self.b_hh = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __str__(self):
         return('RNN(input_size={}, hidden_size={}, bias={})'.format(

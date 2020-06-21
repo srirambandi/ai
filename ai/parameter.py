@@ -7,8 +7,8 @@ import ai.graph
 class Parameter:
     def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
-                uniform=False, low = -1.0, high = 1.0,
-                mean = 0.0, std = 0.01):
+                uniform=False, low=-1.0, high = 1.0,
+                normal=False, mean=0.0, std=0.01):
 
         # properties
         self.shape = shape
@@ -56,11 +56,12 @@ class Parameter:
 
         elif self.uniform:
             # random initiation with uniform distribution
-            self.data = (self.high - self.low) * np.random.rand(*self.shape) + self.low
+            self.data = np.random.uniform(self.low, self.high, self.shape)
 
         else:
             # random initiation with gaussian distribution
-            self.data = self.std*np.random.randn(*self.shape) + self.mean
+            self.normal = True
+            self.data = np.random.normal(mean, std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)
