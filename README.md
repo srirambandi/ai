@@ -16,7 +16,7 @@ This library implements:
   - Layers/models - the fundamental [Linear](https://github.com/srirambandi/ai/blob/master/ai/linear.py) layer, [LSTM and RNN](https://github.com/srirambandi/ai/blob/master/ai/sequential_models.py), [Conv2d and ConvTranspose2d](https://github.com/srirambandi/ai/blob/master/ai/convolutional.py), [BatchNorm](https://github.com/srirambandi/ai/blob/master/ai/batch_norm.py) and a generic [Model](https://github.com/srirambandi/ai/blob/master/ai/model.py) template for util functions
   - [Loss](https://github.com/srirambandi/ai/blob/master/ai/loss.py) - Mean Square, Cross Entropy, BCELoss and few other loss functions.
   - [Optimizers](https://github.com/srirambandi/ai/blob/master/ai/optimizer.py) - basic SGD, Adam, Adagrad and Adadelta optimizer functions with choice of momentum.
-  - Vsisualization function to draw the computational graph of any program you write.
+  - Vsisualization tool to draw the computational graph of any program you write.
   - some example implementations using this library
 
 I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++ soon!
@@ -147,9 +147,9 @@ Examples directory contains some basic popular Deep Learning implementations, an
 
 Other examples using this library, resting in their stand-alone repos are:
 
-  * [GAN/Wasserstrin-GAN implementations](https://github.com/srirambandi/GAN)
-  * [Neural Turing Machines implementation](https://github.com/srirambandi/NTM)
-  * ["Deep Learning for Symbolic Mathematics" - paper implementation](https://github.com/srirambandi/symbolic-mathematics) - complete soon
+  * [GAN/Wasserstein-GAN Implementations](https://github.com/srirambandi/GAN)
+  * [Neural Turing Machines Implementation](https://github.com/srirambandi/NTM)
+  * ["Deep Learning for Symbolic Mathematics" - paper implementation](https://github.com/srirambandi/symbolic-mathematics) - Work In Progress
 
 ### Goals
 
