@@ -580,7 +580,7 @@ class ComputationalGraph:
 
         return out
 
-    def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
+    def max_pool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         F = x.shape[0]     # number of input filter planes
@@ -1235,6 +1235,52 @@ class BatchNorm(Module):
             out = self.graph.add(out, self.beta, axis=(-1,))
 
         return out
+
+
+# maxpool layer
+class Maxpool2d(Module):
+    def __init__(self, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
+        super(Maxpool2d, self).__init__()
+
+        if not isinstance(kernel_size, tuple):
+            kernel_size = (kernel_size, kernel_size)
+        if not isinstance(stride, tuple):
+            stride = (stride, stride)
+        if not isinstance(padding, tuple):
+            padding = (padding, padding)
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.graph = graph
+        
+    def __str__(self):
+        return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
+            self.kernel_size, self.stride, self.padding))
+
+    def __call__(self, x):  # easy callable
+        return self.forward(x)
+
+    def forward(self, x):
+        self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
+
+
+# dropout layer
+class Dropout(Module):
+    def __init__(self, p=0.5, graph=G):
+        super(Maxpool2d, self).__init__()
+        self.p = p
+        self.graph = graph
+        
+    def __str__(self):
+        return('Dropout(p={})'.format(
+            self.p))
+
+    def __call__(self, x):  # easy callable
+        return self.forward(x)
+
+    def forward(self, x):
+        self.graph.dropout(x, p=self.p)
 
 
 # |    ||
