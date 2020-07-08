@@ -16,6 +16,8 @@ from ai.linear import Linear
 from ai.convolutional import Conv2d, ConvTranspose2d
 from ai.sequence_models import RNN, LSTM
 from ai.batch_norm import BatchNorm
+from ai.pooling import Maxpool2d
+from ai.regularization import Dropout
 
 from ai.loss import Loss
 from ai.optimizer import Optimizer

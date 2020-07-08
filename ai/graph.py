@@ -169,7 +169,7 @@ class ComputationalGraph:
         return out
 
     # layers functions
-    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d_old(self, x, K, s = (1, 1), p = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         # 2d convolution operation - simple but inefficient implementation
@@ -240,7 +240,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv2d_faster(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
         # faster 2d convolution operation
 
         C = K.shape[1]      # number of input channels
@@ -303,7 +303,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d_old(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         # 2d convolutional transpose operation - simple but inefficient implementation
@@ -367,7 +367,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d_faster(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
         # faster 2d convolution operation
 
         F = K.shape[0]      # number of input filters
@@ -427,7 +427,7 @@ class ComputationalGraph:
 
         return out
 
-    def maxpool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
+    def max_pool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         F = x.shape[0]     # number of input filter planes

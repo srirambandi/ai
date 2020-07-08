@@ -322,7 +322,7 @@ class ComputationalGraph:
         return out
 
     # layers functions
-    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d_old(self, x, K, s = (1, 1), p = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         # 2d convolution operation - simple but inefficient implementation
@@ -393,7 +393,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv2d_faster(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
         # faster 2d convolution operation
 
         C = K.shape[1]      # number of input channels
@@ -456,7 +456,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d_old(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         # 2d convolutional transpose operation - simple but inefficient implementation
@@ -520,7 +520,7 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d_faster(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
         # faster 2d convolution operation
 
         F = K.shape[0]      # number of input filters
@@ -1013,7 +1013,7 @@ class Conv2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution operation
-        out = self.graph.conv2d_faster(x, self.K, self.stride, self.padding)
+        out = self.graph.conv2d(x, self.K, self.stride, self.padding)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))
@@ -1064,7 +1064,7 @@ class ConvTranspose2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         # convolution transpose operation
-        out = self.graph.conv_transpose2d_faster(x, self.K, self.stride, self.padding, self.a)
+        out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.a)
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-3, -2, -1))
@@ -1237,7 +1237,7 @@ class BatchNorm(Module):
         return out
 
 
-# maxpool layer
+# maxpool2d layer
 class Maxpool2d(Module):
     def __init__(self, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
         super(Maxpool2d, self).__init__()
@@ -1262,6 +1262,10 @@ class Maxpool2d(Module):
         return self.forward(x)
 
     def forward(self, x):
+        
+        if not isinstance(x, Parameter):
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
+            
         self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
 
 
@@ -1280,6 +1284,10 @@ class Dropout(Module):
         return self.forward(x)
 
     def forward(self, x):
+        
+        if not isinstance(x, Parameter):
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
+            
         self.graph.dropout(x, p=self.p)
 
 
