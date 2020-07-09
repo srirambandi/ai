@@ -639,6 +639,58 @@ class ComputationalGraph:
 
         return out
 
+    def max_pool2d_faster(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params)
+        # useful: https://arxiv.org/pdf/1603.07285.pdf
+
+        F = x.shape[0]     # number of input filter planes
+        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
+        N = x.shape[-1]    # Batch size
+        
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (F, *k, *o, N)
+        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
+        x_cols = x_cols.reshape(F, k[0] * k[1], *o, N)
+        
+        # store indices of the max location of each patch
+        max_indices = np.argmax(x_cols, axis=1)
+        
+        out = np.max(x_cols, axis=1)
+        out = Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('maxpool2d')
+                if x.eval_grad:
+
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
+
+                            # multiplying each 'mask' like volume(single 1s in the volumes along all batches) with the gradient
+                            # at region whose value was caused by the mask region's input
+                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= out.grad[:, r, c, :].reshape(F, 1, 1, N)
+
+                    # cutting the padded portion from the input gradient
+                    # and updating the gradient of actual input(non-padded) - unpadding and updating
+                    x.grad += pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :]
+
+                # return (x.grad)
+
+            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+    
     def dropout(self, x, p=0.5):    # dropout regularization layer!
         # useful: https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
 
