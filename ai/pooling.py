@@ -6,9 +6,11 @@ from ai.module import Module
 
 # maxpool2d layer - non-parametrized layer
 class Maxpool2d(Module):
-    def __init__(self, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
+    def __init__(self, kernel_size=None, stride=None, padding=(0, 0), graph=G):
         super(Maxpool2d, self).__init__()
 
+        if stride is None:
+            stride = Kernel_size
         if not isinstance(kernel_size, tuple):
             kernel_size = (kernel_size, kernel_size)
         if not isinstance(stride, tuple):

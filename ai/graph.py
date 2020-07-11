@@ -169,11 +169,16 @@ class ComputationalGraph:
         return out
 
     # layers functions
-    def conv2d_old(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d_old(self, x, K, s=(1, 1), p=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-
+        
         # 2d convolution operation - simple but inefficient implementation
         # Conv2d lasyer uses conv2d_faster for faster computation
+        if not isinstance(s, tuple):
+            s = (s, s)
+        if not isinstance(p, tuple):
+            p = (p, p)
+        
         F = K.shape[0]     # number of output filters
         C = K.shape[1]     # number of input channels
         k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
@@ -240,8 +245,13 @@ class ComputationalGraph:
 
         return out
 
-    def conv2d(self, x, K, s = (1, 1), p = (0, 0)):
+    def conv2d(self, x, K, s=(1, 1), p=(0, 0)):
         # faster 2d convolution operation
+        
+        if not isinstance(s, tuple):
+            s = (s, s)
+        if not isinstance(p, tuple):
+            p = (p, p)
 
         C = K.shape[1]      # number of input channels
         F = K.shape[0]      # number of output filters
@@ -303,11 +313,18 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d_old(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d_old(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-
+        
         # 2d convolutional transpose operation - simple but inefficient implementation
         # ConvTranspose2d lasyer uses conv_transpose2d_faster for faster computation
+        if not isinstance(s, tuple):
+            s = (s, s)
+        if not isinstance(p, tuple):
+            p = (p, p)
+        if not isinstance(a, tuple):
+            a = (a, a)
+
         F = K.shape[0]     # number of filters - here number of feature input planes
         C = K.shape[1]     # number of input channels - here number of image output planes
         k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
@@ -367,8 +384,15 @@ class ComputationalGraph:
 
         return out
 
-    def conv_transpose2d(self, x, K, s = (1, 1), p = (0, 0), a = (0, 0)):
+    def conv_transpose2d(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # faster 2d convolution operation
+        
+        if not isinstance(s, tuple):
+            s = (s, s)
+        if not isinstance(p, tuple):
+            p = (p, p)
+        if not isinstance(a, tuple):
+            a = (a, a)
 
         F = K.shape[0]      # number of input filters
         C = K.shape[1]      # number of output channels
@@ -427,8 +451,15 @@ class ComputationalGraph:
 
         return out
 
-    def max_pool2d(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
+    def max_pool2d(self, x, k=None, s=None, p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
+        
+        if s is None:
+            s = k
+        if not isinstance(k, tuple):
+            k = (k, k)
+        if not isinstance(s, tuple):
+            s = (s, s)
 
         F = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding

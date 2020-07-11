@@ -72,11 +72,11 @@ class Module(object):
     def get_module_layers(self):   # returns a dictionary of parametrized layers in the model
 
         attributes = self.__dict__
-        parametrized_layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm']
+        layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'Maxpool2d', 'Dropout']
 
         module_layers = dict()
         for name in attributes:
-            if attributes[name].__class__.__name__ in parametrized_layers:
+            if attributes[name].__class__.__name__ in layers:
                 module_layers[name] = attributes[name]
 
         return module_layers
