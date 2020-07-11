@@ -12,7 +12,7 @@ class ComputationalGraph:
     # functions required for deep learning models and their respective backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
 
-        assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation'
+        assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation - W: {}, x: {}'.format(W.shape, x.shape)
         out = ai.parameter.Parameter(data=np.dot(W.data, x.data), graph=self)
 
         if self.grad_mode:

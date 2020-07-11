@@ -61,7 +61,7 @@ class Parameter:
         else:
             # random initiation with gaussian distribution
             self.normal = True
-            self.data = np.random.normal(mean, std, self.shape)
+            self.data = np.random.normal(self.mean, self.std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)

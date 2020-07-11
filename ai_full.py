@@ -69,7 +69,7 @@ class Parameter:
         else:
             # random initiation with gaussian distribution
             self.normal = True
-            self.data = np.random.normal(mean, std, self.shape)
+            self.data = np.random.normal(self.mean, self.std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
         self.grad = np.zeros(self.shape)
@@ -165,7 +165,7 @@ class ComputationalGraph:
     # functions required for deep learning models and their respective backward operations
     def dot(self, W, x):    # dot product of vectors and matrices
 
-        assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation'
+        assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation - W: {}, x: {}'.format(W.shape, x.shape)
         out = Parameter(data=np.dot(W.data, x.data), graph=self)
 
         if self.grad_mode:
@@ -645,7 +645,7 @@ class ComputationalGraph:
         F = x.shape[0]     # number of input filter planes
         i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
         N = x.shape[-1]    # Batch size
-        
+
         # Figure out output dimensions
         o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
         pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
@@ -660,10 +660,10 @@ class ComputationalGraph:
         stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
         x_cols = np.ascontiguousarray(stride_x)
         x_cols = x_cols.reshape(F, k[0] * k[1], *o, N)
-        
+
         # store indices of the max location of each patch
         max_indices = np.argmax(x_cols, axis=1)
-        
+
         out = np.max(x_cols, axis=1)
         out = Parameter(data=out, graph=self)
 
@@ -690,7 +690,7 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return out
-    
+
     def dropout(self, x, p=0.5):    # dropout regularization layer!
         # useful: https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
 
@@ -1289,7 +1289,7 @@ class BatchNorm(Module):
         return out
 
 
-# maxpool2d layer
+# maxpool2d layer - non-parametrized layer
 class Maxpool2d(Module):
     def __init__(self, kernel_size=None, stride=(1, 1), padding=(0, 0), graph=G):
         super(Maxpool2d, self).__init__()
@@ -1305,7 +1305,7 @@ class Maxpool2d(Module):
         self.stride = stride
         self.padding = padding
         self.graph = graph
-        
+
     def __str__(self):
         return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
             self.kernel_size, self.stride, self.padding))
@@ -1314,33 +1314,36 @@ class Maxpool2d(Module):
         return self.forward(x)
 
     def forward(self, x):
-        
+
         if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
-            
-        self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
+
+        out = self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
+        
+        return out
 
 
-# dropout layer
+# dropout layer - non-parametrized layer
 class Dropout(Module):
     def __init__(self, p=0.5, graph=G):
-        super(Maxpool2d, self).__init__()
+        super(Dropout, self).__init__()
         self.p = p
         self.graph = graph
-        
+
     def __str__(self):
-        return('Dropout(p={})'.format(
-            self.p))
+        return('Dropout(p={})'.format(self.p))
 
     def __call__(self, x):  # easy callable
         return self.forward(x)
 
     def forward(self, x):
-        
+
         if not isinstance(x, Parameter):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
-            
-        self.graph.dropout(x, p=self.p)
+
+        out = self.graph.dropout(x, p=self.p)
+        
+        return out
 
 
 # |    ||
