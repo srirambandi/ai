@@ -11,13 +11,13 @@ So, as you have guessed, the best way to utilise this library is by implementing
 ### Features
 
 This library implements:
-  - a [Parameter](https://github.com/srirambandi/ai/blob/master/ai/parameter.py) object - that holds the weights and gradients(wrt to a scalar quantity)
-  - a [Computational Graph](https://github.com/srirambandi/ai/blob/master/ai/graph.py) - to store operations during forward pass, as a bfs walk in Directed Graph and execute them in reverse order during backprop. This has all the necessary functions to help realise many layers to do deep learning(activations, regularizers etc.)
-  - Layers/models - the fundamental [Linear](https://github.com/srirambandi/ai/blob/master/ai/linear.py) layer, [LSTM and RNN](https://github.com/srirambandi/ai/blob/master/ai/sequential_models.py), [Conv2d and ConvTranspose2d](https://github.com/srirambandi/ai/blob/master/ai/convolutional.py), [BatchNorm](https://github.com/srirambandi/ai/blob/master/ai/batch_norm.py) and a generic [Model](https://github.com/srirambandi/ai/blob/master/ai/model.py) template for util functions
+  - [Parameter](https://github.com/srirambandi/ai/blob/master/ai/parameter.py) object - that holds the weights and gradients(wrt to a scalar quantity)
+  - [Computational Graph](https://github.com/srirambandi/ai/blob/master/ai/graph.py) - to store operations during forward pass, as a bfs walk in Directed Graph and execute them in reverse order during backprop. This has all the necessary functions to help realise many layers to do deep learning(basic operations, activations, regularizers etc.)
+  - Layers - the fundamental [Linear](https://github.com/srirambandi/ai/blob/master/ai/linear.py) layer, [LSTM and RNN](https://github.com/srirambandi/ai/blob/master/ai/sequential_models.py), [Conv2d and ConvTranspose2d](https://github.com/srirambandi/ai/blob/master/ai/convolutional.py), [BatchNorm](https://github.com/srirambandi/ai/blob/master/ai/batch_norm.py) and few other non-parametrized layers([pooling](https://github.com/srirambandi/ai/blob/master/ai/pooling.py), [regularization](https://github.com/srirambandi/ai/blob/master/ai/regularization.py))
   - [Loss](https://github.com/srirambandi/ai/blob/master/ai/loss.py) - Mean Square, Cross Entropy, BCELoss and few other loss functions.
-  - [Optimizers](https://github.com/srirambandi/ai/blob/master/ai/optimizer.py) - basic SGD, Adam, Adagrad and Adadelta optimizer functions with choice of momentum.
-  - Vsisualization tool to draw the computational graph of any program you write.
-  - some example implementations using this library
+  - [Optimizers](https://github.com/srirambandi/ai/blob/master/ai/optimizer.py) - basic SGD(momentum), Adam, Adagrad, Adadelta and RMSProp optimizer functions.
+  - Visualization tool to draw the computational graph of any neural network you program.
+  - Some example implementations using this library.
 
 I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++ soon!
 
@@ -79,7 +79,7 @@ see the Computational Graph for the above program
 ![Computational Graph of linear](/assets/linear.svg)
 
 
-Parameters(single circles) interact with functions(double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants). Also, checkout some other nice renderings in the assets folder.
+Parameters(single circles) interact with functions(double circles) and output Parameters. The values in the circles of parameters are the node ids indexed with the bfs-walk of graph during forward pass, goes from lowest node id circle to highest node id circle. The backward pass is the same graph with edges reversed, goes from highest node id circle to lowest node id circle. The circles with ````None```` doesn't have any backward operations attached to them. The circes with red line doesn't need gradients(inputs, outputs, constants). Also, checkout some other nice renderings of computational graphs in the assets folder.
 
 
 2. **Or a more schematic code to use in Deep Learning projects as below.**
