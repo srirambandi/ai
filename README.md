@@ -97,11 +97,13 @@ def data_generator(file):
 class Net(ai.Module):
     def __init__(self):
         self.conv = ai.Conv2d(3, 16, kernel=3, stride=1, padding=0)
+        self.pool = ai.Maxpool2d(kernel_size=2, stride=2)
+        self.drop = ai.Dropout(p=0.5)
         self.fc = ai.Linear(x, 10)
 
      def forward(self, x):
         o1 = ai.G.relu(self.conv(x))
-        o2 = ai.G.dropout(ai.G.maxpool(o1), p=0.5)
+        o2 = self.drop(self.pool(o1))
         o3 = self.fc(o2)
 
         return ai.G.softmax(o3)
@@ -109,6 +111,7 @@ class Net(ai.Module):
 model = Net()
 print(model)
 
+# loss and optimizer functions
 L = ai.Loss('CrossEntropyLoss')
 optim = ai.Optimizer(model.parameters(), optim_fn='Adam', lr=1e-3)
 
@@ -122,6 +125,7 @@ def evaluate():
     ai.G.grad_mode = True
 
 # some control parameters
+...
 
 # training loop
 while not converged:
@@ -131,12 +135,13 @@ while not converged:
     loss = L.loss(scores, outputs)
     loss.backward()
 
-    # logging info
-
     # update weights
     optim.step()
     optim.zero_grad()
-
+    
+    # logging info
+    print(...)
+    
 
 model.save()
 ````
