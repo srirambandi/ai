@@ -347,6 +347,73 @@ class ComputationalGraph:
         return out
 
     # layers functions
+    def conv1d(self, x, K, s=(1,), p=(0,)):
+        # faster 1d convolution operation
+        
+        if not isinstance(s, tuple):
+            s = (s,)
+        if not isinstance(p, tuple):
+            p = (p,)
+        
+        C = K.shape[1]      # number of input channels
+        F = K.shape[0]      # number of output filters
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        pad_x = np.pad(x.data, ((0, 0), (*p, *p), (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (C, *k, *o, N)
+        strides = (pad_i[0] * N, N, s[0] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
+        x_cols = x_cols.reshape(C * k[0], o[0] * N)
+
+        # convolution operation - matrix multiplication of strided array with kernel
+        out = K.data.reshape(F, -1).dot(x_cols)
+
+        # Reshape the output
+        out = out.reshape(F, *o, N)
+        out = np.ascontiguousarray(out)
+
+        out = Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('conv1d')
+                if K.eval_grad:
+                    K.grad += np.ascontiguousarray(out.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape))
+
+                if x.eval_grad:
+
+                    pad_x_grad = np.zeros(pad_x.shape)
+                    for r in range(out.shape[1]):
+
+                        # solving gradient for input feature map that caused the elements in r position of every output filter
+                        # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                        _ = out.grad[:, r, :].reshape(F, 1, 1, N)
+                        pad_x_grad[:, r*s[0]:r*s[0] + k[0], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+
+                    # cutting the padded portion from the input-feature-map's gradient
+                    # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], :]
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv1d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
     def conv2d_old(self, x, K, s=(1, 1), p=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
         
@@ -490,7 +557,7 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return out
-
+    
     def conv_transpose2d_old(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
         
@@ -1101,6 +1168,54 @@ class Linear(Module):
 
         if self.bias:   # adding bias
             out = self.graph.add(out, self.b, axis=(-1,))
+
+        return out
+
+
+# 1D convolutional neural network
+class Conv1d(Module):
+    def __init__(self, input_channels=None, output_channels=None, kernel_size=None, stride=(1,), padding=(0,), bias=True, graph=G):
+        super(Conv1d, self).__init__()
+        self.input_channels = input_channels
+        self.output_channels = output_channels
+
+        if not isinstance(kernel_size, tuple):
+            kernel_size = (kernel_size,)
+        if not isinstance(stride, tuple):
+            stride = (stride,)
+        if not isinstance(padding, tuple):
+            padding = (padding,)
+
+        self.kernel_size = kernel_size
+        self.filter_size = (self.input_channels, *(self.kernel_size))
+        self.stride = stride
+        self.padding = padding
+        self.bias = bias
+        self.graph = graph
+        self.init_params()
+
+    def init_params(self):
+        root_k = np.sqrt(1. / (self.input_channels * self.kernel_size[0]))
+        self.K = Parameter((self.output_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.b = Parameter((self.output_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+
+    def __str__(self):
+        return('Conv1d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
+            self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.bias))
+
+    def __call__(self, x):  # easy callable
+        return self.forward(x)
+
+    def forward(self, x):
+
+        if not isinstance(x, Parameter):
+            x = Parameter(data=x, eval_grad=False, graph=self.graph)
+
+        # convolution operation
+        out = self.graph.conv1d(x, self.K, self.stride, self.padding)
+
+        if self.bias:   # adding bias
+            out = self.graph.add(out, self.b, axis=(-2, -1))
 
         return out
 
