@@ -962,20 +962,20 @@ G = ComputationalGraph()
 
 
 
-# generic model class to add useful features like save/load model from files, get parameters etc.
+# generic module class to add useful features like save/load model from files, get parameters etc.
 class Module(object):
     def __init__(self):
         pass
 
     def __str__(self):
-        model_schema = str(self.__class__.__name__) + '(\n'
+        module_schema = str(self.__class__.__name__) + '(\n'
 
         for name, layer in self.get_module_layers().items():
-            model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
+            module_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
 
-        model_schema += ')'
+        module_schema += ')'
 
-        return model_schema
+        return module_schema
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
@@ -1028,7 +1028,7 @@ class Module(object):
 
         print('Successfully loaded model from {}'.format(file))
 
-    def get_module_layers(self):   # returns a dictionary of parametrized layers in the model
+    def get_module_layers(self):   # returns a dictionary of parametrized layers in the module
 
         attributes = self.__dict__
         layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'Maxpool2d', 'Dropout']
@@ -1040,18 +1040,19 @@ class Module(object):
 
         return module_layers
 
-    def get_module_params(self):    # returns a dictionary of parameters in the model
+    def get_module_params(self):    # returns a dictionary of parameters in the module
 
         attributes = self.__dict__
 
         module_params = dict()
         for name in attributes:
             if attributes[name].__class__.__name__ in ['Parameter']:
-                module_params[name] = attributes[name]
+                if attributes[name].eval_grad:
+                    module_params[name] = attributes[name]
 
         return module_params
 
-    def parameters(self):   # access parameters of the model with this function
+    def parameters(self):   # access parameters of the module with this function
 
         all_params = list()
 
@@ -1321,8 +1322,10 @@ class BatchNorm(Module):
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
-        self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
+        self.m = Parameter(data=np.sum(np.zeros(shape), axis=self.axis, 
+                     keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving mean - not trainable
+        self.v = Parameter(data=np.sum(np.ones(shape), axis=self.axis, 
+                     keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving variance - not trainable
 
     def __str__(self):
         return('BatchNorm({}, axis={}, momentum={}, bias={})'.format(
@@ -1347,16 +1350,16 @@ class BatchNorm(Module):
             centered = self.graph.subtract(x, mean, axis=self.axis)
             var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=self.axis), batch_size)
 
-            self.m = self.momentum * self.m + (1 - self.momentum) * mean.data
-            self.v = self.momentum * self.v + (1 - self.momentum) * var.data
+            self.m.data = self.momentum * self.m.data + (1 - self.momentum) * mean.data
+            self.v.data = self.momentum * self.v.data + (1 - self.momentum) * var.data
 
             # normalize the data to zero mean and unit variance
             normalized = self.graph.multiply(centered, self.graph.power(var, -0.5), axis=self.axis)
 
         else:   # testing
 
-            centered = np.subtract(x.data, self.m)
-            normalized = np.multiply(centered, np.power(self.v + 1e-6, -0.5))
+            centered = np.subtract(x.data, self.m.data)
+            normalized = np.multiply(centered, np.power(self.v.data + 1e-6, -0.5))
             normalized = Parameter(data=normalized, eval_grad=False, graph=self.graph)
 
         # scale and shift
