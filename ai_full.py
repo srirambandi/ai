@@ -13,7 +13,7 @@ import numpy as np
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
+    def __init__(self, shape=(0, 0), data=None, grad=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low=-1.0, high = 1.0,
                 normal=False, mean=0.0, std=0.01):
@@ -21,6 +21,7 @@ class Parameter:
         # properties
         self.shape = shape
         self.data = data
+        self.grad = grad
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
 
         # node id - in the bfs like graph walk during forward pass, the node numeber
@@ -51,7 +52,8 @@ class Parameter:
 
         if self.data is not None:
             # initiating weights with passed data object of kind list/numpy-ndarray
-            self.data = np.array(self.data)
+            if not isinstance(self.data, np.ndarray):
+                self.data = np.array(self.data)
             self.shape = self.data.shape   # resolving conflict with passed shape and data shape
 
         elif self.init_zeros:
@@ -72,7 +74,12 @@ class Parameter:
             self.data = np.random.normal(self.mean, self.std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
-        self.grad = np.zeros(self.shape)
+        if self.grad is None:
+            self.grad = np.zeros(self.shape)
+        else:
+            if not isinstance(self.grad, np.ndarray):
+                self.grad = np.array(self.grad)
+            assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
 
     def __str__(self):
         parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:\n'.format(self.shape, self.eval_grad)
@@ -89,7 +96,8 @@ class Parameter:
             return
 
         if grad is not None:
-            self.grad = np.array(grad)
+            if not isinstance(grad, np.ndarray):
+                self.grad = np.array(grad)
 
         if to is None:
             to_node_id = 0    # execute backward all the way to start
@@ -98,6 +106,23 @@ class Parameter:
 
         for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
             node['backprop_op']()       # executing the back-propagation operation
+            
+    def __getitem__(self, key):
+        
+        axis = []
+        return_scalar = True
+        for _ in range(len(key)):
+            if isinstance(key[_], int):
+                axis.append(_)
+            if isinstance(key[_], slice):
+                return_scalar = False
+        axis = tuple(axis)
+        
+        if return_scalar:
+            return self.data[key]
+        else:
+            return Parameter(data=np.expand_dims(self.data[key], axis=axis), 
+                             grad=np.expand_dims(self.grad[key], axis=axis))
 
     def __add__(self, other):
 
@@ -855,10 +880,12 @@ class ComputationalGraph:
 
         if self.grad_mode:
             def backward():
-                #print('split')
+                # print('split')
                 outs_grads = [o.grad for o in outs_list]
                 if W.eval_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
+                    
+                # return W.grad
 
             node = {'func': 'split', 'inputs': [W], 'outputs': outs_list, 'backprop_op': lambda: backward()}
             for out in outs_list:
@@ -866,6 +893,27 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return outs_list
+    
+    def cat(self, inputs_list, axis=0):
+        indices = [input.shape[axis] for input in inputs_list]
+        indices = [sum(indices[:_+1]) for _ in range(len(indices))]
+        out = Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
+        
+        if self.grad_mode:
+            def backward():
+                # print('cat')
+                input_grads = np.split(out.grad, indices, axis=axis)
+                for _ in range(len(inputs_list)):
+                    if inputs_list[_].eval_grad:
+                        inputs_list[_].grad += input_grads[_]
+                        
+                # return *[input.grad for input in inputs_list]
+                
+            node = {'func': 'cat', 'inputs': [inputs_list], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+            
+        return out
 
     def T(self, x):     # transpose
         out = Parameter(data=x.data.T, graph=self)
