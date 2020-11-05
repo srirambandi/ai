@@ -1,23 +1,23 @@
 # import ai
 
-AI library in python using numpy, with end-to-end reverse auto-differentiable dynamic Computational Graph. Implements general Deep Learning library components with the end API similar to that of my favourite, Pytorch.
+AI library in python using numpy, with end-to-end reverse auto-differentiable Computational Graph. Implements general Deep Learning library components with the end API similar to that of Pytorch.
 
 ### About
 
-Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the mechanics of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning critically, whose importance is pointed by one of favourite AI researchers [Andrej Karpath](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video.
+Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the inner workings of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning from first principles, whose importance is pointed by one of favourite AI researchers [Andrej Karpathy](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video.
 
-So, as you have guessed, the best way to utilise this library is by implementing your own from scratch. Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :)
+Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :) We can build new and coming AI models into the library together too!
 
 ### Features
 
 This library implements:
-  - [Parameter](https://github.com/srirambandi/ai/blob/master/ai/parameter.py) object - that holds the weights and gradients(wrt to a scalar quantity)
-  - [Computational Graph](https://github.com/srirambandi/ai/blob/master/ai/graph.py) - to store operations during forward pass, as a bfs walk in Directed Graph and execute them in reverse order during backprop. This has all the necessary functions to help realise many layers to do deep learning(basic operations, activations, regularizers etc.)
+  - [Parameter](https://github.com/srirambandi/ai/blob/master/ai/parameter.py) - object that holds the weights and gradients(wrt to a scalar quantity)
+  - [Computational Graph](https://github.com/srirambandi/ai/blob/master/ai/graph.py) - to store operations during forward pass, as a bfs walk in a Directed Graph and execute them in reverse order during backprop. This has all the necessary functions to help realise many layers to do deep learning(basic ops, layer ops, activations, regularizers etc.)
   - Layers - the fundamental [Linear](https://github.com/srirambandi/ai/blob/master/ai/linear.py) layer, [LSTM and RNN](https://github.com/srirambandi/ai/blob/master/ai/sequential_models.py), [Conv2d and ConvTranspose2d](https://github.com/srirambandi/ai/blob/master/ai/convolutional.py), [BatchNorm](https://github.com/srirambandi/ai/blob/master/ai/batch_norm.py) and few other non-parametrized layers([pooling](https://github.com/srirambandi/ai/blob/master/ai/pooling.py), [regularization](https://github.com/srirambandi/ai/blob/master/ai/regularization.py))
   - [Loss](https://github.com/srirambandi/ai/blob/master/ai/loss.py) - Mean Square, Cross Entropy, BCELoss and few other loss functions.
   - [Optimizers](https://github.com/srirambandi/ai/blob/master/ai/optimizer.py) - basic SGD(momentum), Adam, Adagrad, Adadelta and RMSProp optimizer functions.
-  - Visualization tool to draw the computational graph of any neural network you program.
-  - Some example implementations using this library.
+  - [Visualization](https://github.com/srirambandi/ai/blob/master/ai/utils.py#L7) tool - to draw the computational graph of any neural network you program.
+  - Some [example implementations](https://github.com/srirambandi/ai/tree/master/examples) using this simple library.
 
 I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++ soon!
 
