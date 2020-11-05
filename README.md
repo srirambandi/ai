@@ -4,9 +4,9 @@ AI library in python using numpy, with end-to-end reverse auto-differentiable Co
 
 ### About
 
-Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the inner workings of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning from first principles, whose importance is pointed by one of favourite AI researchers [Andrej Karpathy](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) video.
+Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the inner workings of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning from first principles, whose importance is pointed by one of favourite AI researchers [Andrej Karpathy](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) awesome interview.
 
-Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :) We can build new and coming AI models into the library together too!
+Refer to this library when you don't understand how a Deep Learning component is built, tweak it and have fun :) We can build new and coming AI models(along with the classic ones) into the library together too!
 
 ### Features
 
@@ -19,7 +19,7 @@ This library implements:
   - [Visualization](https://github.com/srirambandi/ai/blob/master/ai/utils.py#L7) tool - to draw the computational graph of any neural network you program.
   - Some [example implementations](https://github.com/srirambandi/ai/tree/master/examples) using this simple library.
 
-I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++ soon!
+I will keep updating the library with more explanations, documentation and a similar library in my favourite language, c++.
 
 ### Installation
 
