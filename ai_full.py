@@ -2,7 +2,7 @@
 AI library in python using numpy
 
 Author: Sri Ram Bandi (srirambandi.654@gmail.com)
-        https://srirambandi.github.io
+        https://www.github.com/srirambandi
 
 MIT License
 """
