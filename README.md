@@ -2,6 +2,10 @@
 
 AI library in python using numpy, with end-to-end reverse auto-differentiable Computational Graph. Implements general Deep Learning library components with the end API similar to that of Pytorch.
 
+### Goal
+
+Implement Transformers and finish deep learning models development in this week.
+
 ### About
 
 Begineers in Deep Learning will find this repo useful. The purpose of this library is to serve as an educational tool, a reference guide to better understand the inner workings of deep concepts of AI by implementing everything from scratch. I want to expose the functions of Deep Learning APIs as clearly as possible. I originally built this for myself to understand Deep Learning from first principles, whose importance is pointed by one of favourite AI researchers [Andrej Karpathy](https://twitter.com/karpathy), in [this](https://youtu.be/_au3yw46lcg?t=786) awesome interview.
