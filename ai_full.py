@@ -81,7 +81,7 @@ class Parameter:
                 self.grad = np.array(self.grad)
             assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
 
-    def __str__(self):
+    def __repr__(self):
         parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:\n'.format(self.shape, self.eval_grad)
         parameter_schema += 'Data: {}'.format(self.data)
 
@@ -106,9 +106,9 @@ class Parameter:
 
         for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
             node['backprop_op']()       # executing the back-propagation operation
-            
+
     def __getitem__(self, key):
-        
+
         axis = []
         return_scalar = True
         for _ in range(len(key)):
@@ -117,11 +117,11 @@ class Parameter:
             if isinstance(key[_], slice):
                 return_scalar = False
         axis = tuple(axis)
-        
+
         if return_scalar:
             return self.data[key]
         else:
-            return Parameter(data=np.expand_dims(self.data[key], axis=axis), 
+            return Parameter(data=np.expand_dims(self.data[key], axis=axis),
                              grad=np.expand_dims(self.grad[key], axis=axis))
 
     def __add__(self, other):
@@ -349,12 +349,12 @@ class ComputationalGraph:
     # layers functions
     def conv1d(self, x, K, s=(1,), p=(0,)):
         # faster 1d convolution operation
-        
+
         if not isinstance(s, tuple):
             s = (s,)
         if not isinstance(p, tuple):
             p = (p,)
-        
+
         C = K.shape[1]      # number of input channels
         F = K.shape[0]      # number of output filters
         i = x.shape[1:-1]   # input channel shape
@@ -416,14 +416,14 @@ class ComputationalGraph:
 
     def conv2d_old(self, x, K, s=(1, 1), p=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         # 2d convolution operation - simple but inefficient implementation
         # Conv2d lasyer uses conv2d_faster for faster computation
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
             p = (p, p)
-        
+
         F = K.shape[0]     # number of output filters
         C = K.shape[1]     # number of input channels
         k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
@@ -492,12 +492,12 @@ class ComputationalGraph:
 
     def conv2d(self, x, K, s=(1, 1), p=(0, 0)):
         # faster 2d convolution operation
-        
+
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
             p = (p, p)
-        
+
         C = K.shape[1]      # number of input channels
         F = K.shape[0]      # number of output filters
         i = x.shape[1:-1]   # input channel shape
@@ -557,10 +557,10 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return out
-    
+
     def conv_transpose2d_old(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         # 2d convolutional transpose operation - simple but inefficient implementation
         # ConvTranspose2d lasyer uses conv_transpose2d_faster for faster computation
         if not isinstance(s, tuple):
@@ -631,7 +631,7 @@ class ComputationalGraph:
 
     def conv_transpose2d(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # faster 2d convolution operation
-        
+
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
@@ -698,7 +698,7 @@ class ComputationalGraph:
 
     def max_pool2d(self, x, k=None, s=None, p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         if s is None:
             s = k
         if not isinstance(k, tuple):
@@ -951,7 +951,7 @@ class ComputationalGraph:
                 outs_grads = [o.grad for o in outs_list]
                 if W.eval_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
-                    
+
                 # return W.grad
 
             node = {'func': 'split', 'inputs': [W], 'outputs': outs_list, 'backprop_op': lambda: backward()}
@@ -960,12 +960,12 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return outs_list
-    
+
     def cat(self, inputs_list, axis=0):
         indices = [input.shape[axis] for input in inputs_list]
         indices = [sum(indices[:_+1]) for _ in range(len(indices))]
         out = Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
-        
+
         if self.grad_mode:
             def backward():
                 # print('cat')
@@ -973,13 +973,13 @@ class ComputationalGraph:
                 for _ in range(len(inputs_list)):
                     if inputs_list[_].eval_grad:
                         inputs_list[_].grad += input_grads[_]
-                        
+
                 # return *[input.grad for input in inputs_list]
-                
+
             node = {'func': 'cat', 'inputs': [inputs_list], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
-            
+
         return out
 
     def T(self, x):     # transpose
@@ -1034,7 +1034,7 @@ class Module(object):
     def __init__(self):
         pass
 
-    def __str__(self):
+    def __repr__(self):
         module_schema = str(self.__class__.__name__) + '(\n'
 
         for name, layer in self.get_module_layers().items():
@@ -1147,7 +1147,7 @@ class Linear(Module):
         self.W = Parameter((self.output_features, self.input_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
-    def __str__(self):
+    def __repr__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
             self.input_features, self.output_features, self.bias))
 
@@ -1199,7 +1199,7 @@ class Conv1d(Module):
         self.K = Parameter((self.output_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
-    def __str__(self):
+    def __repr__(self):
         return('Conv1d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
@@ -1247,7 +1247,7 @@ class Conv2d(Module):
         self.K = Parameter((self.output_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
-    def __str__(self):
+    def __repr__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
@@ -1298,7 +1298,7 @@ class ConvTranspose2d(Module):
         self.K = Parameter((self.input_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
         self.b = Parameter((self.output_channels, 1, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
-    def __str__(self):
+    def __repr__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, a={}, bias={})'.format(
             self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.a, self.bias))
 
@@ -1336,7 +1336,7 @@ class LSTM(Module):
         self.b_ih = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
         self.b_hh = Parameter((4*self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
 
-    def __str__(self):
+    def __repr__(self):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
             self.input_size, self.hidden_size, self.bias))
 
@@ -1393,7 +1393,7 @@ class RNN(Module):
         self.b_ih = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
         self.b_hh = Parameter((self.hidden_size, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
-    def __str__(self):
+    def __repr__(self):
         return('RNN(input_size={}, hidden_size={}, bias={})'.format(
             self.input_size, self.hidden_size, self.bias))
 
@@ -1437,12 +1437,12 @@ class BatchNorm(Module):
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.m = Parameter(data=np.sum(np.zeros(shape), axis=self.axis, 
+        self.m = Parameter(data=np.sum(np.zeros(shape), axis=self.axis,
                      keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving mean - not trainable
-        self.v = Parameter(data=np.sum(np.ones(shape), axis=self.axis, 
+        self.v = Parameter(data=np.sum(np.ones(shape), axis=self.axis,
                      keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving variance - not trainable
 
-    def __str__(self):
+    def __repr__(self):
         return('BatchNorm({}, axis={}, momentum={}, bias={})'.format(
             self.hidden_shape, self.axis, self.momentum, self.bias))
 
@@ -1505,7 +1505,7 @@ class Maxpool2d(Module):
         self.padding = padding
         self.graph = graph
 
-    def __str__(self):
+    def __repr__(self):
         return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
             self.kernel_size, self.stride, self.padding))
 
@@ -1518,7 +1518,7 @@ class Maxpool2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         out = self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
-        
+
         return out
 
 
@@ -1529,7 +1529,7 @@ class Dropout(Module):
         self.p = p
         self.graph = graph
 
-    def __str__(self):
+    def __repr__(self):
         return('Dropout(p={})'.format(self.p))
 
     def __call__(self, x):  # easy callable
@@ -1541,7 +1541,7 @@ class Dropout(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         out = self.graph.dropout(x, p=self.p)
-        
+
         return out
 
 
@@ -1570,7 +1570,7 @@ class Loss:
         else:
           raise 'No such loss function'
 
-    def __str__(self):
+    def __repr__(self):
         return('Loss(loss_fn={})'.format(self.loss_fn))
 
     def MSELoss(self, y_out, y_true):
@@ -1721,7 +1721,7 @@ class Optimizer:
                 for parameter in self.parameters:
                     self.v.append(np.zeros(parameter.shape))
 
-    def __str__(self):
+    def __repr__(self):
         return('Optimizer(optim_fn={}, lr={}, momentum={})'.format(
             self.optim_fn, self.lr, self.momentum))
 
