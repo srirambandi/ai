@@ -1558,22 +1558,22 @@ class Loss:
     def loss(self, y_out, y_true):
 
         if self.loss_fn == 'MSELoss':
-            return self.MSELoss(y_out, y_true)
+            return self.mse_loss(y_out, y_true)
         elif self.loss_fn == 'CrossEntropyLoss':
-            return self.CrossEntropyLoss(y_out, y_true)
+            return self.cross_entropy_loss(y_out, y_true)
         elif self.loss_fn == 'BCELoss':
-            return self.BCELoss(y_out, y_true)
+            return self.bce_loss(y_out, y_true)
         elif self.loss_fn == 'JSDivLoss':
-            return self.JSDivLoss(y_out, y_true)
+            return self.js_divergence_loss(y_out, y_true)
         elif self.loss_fn == 'TestLoss':
-            return self.TestLoss(y_out)
+            return self.test_loss(y_out)
         else:
           raise 'No such loss function'
 
     def __repr__(self):
         return('Loss(loss_fn={})'.format(self.loss_fn))
 
-    def MSELoss(self, y_out, y_true):
+    def mse_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -1590,7 +1590,7 @@ class Loss:
 
         return l
 
-    def CrossEntropyLoss(self, y_out, y_true):
+    def cross_entropy_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -1610,7 +1610,7 @@ class Loss:
 
         return l
 
-    def BCELoss(self, y_out, y_true):
+    def bce_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -1642,7 +1642,7 @@ class Loss:
 
         return l
 
-    def JSDivLoss(self, y_out, y_true):
+    def js_divergence_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -1671,7 +1671,7 @@ class Loss:
 
         return l
 
-    def TestLoss(self, y_out):
+    def test_loss(self, y_out):
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_out.shape[-1]))
@@ -1739,20 +1739,20 @@ class Optimizer:
         # useful: https://arxiv.org/pdf/1609.04747.pdf
 
         if self.optim_fn == 'SGD':
-            return self.SGD()
+            return self.stochastic_gradient_descent()
         elif self.optim_fn == 'Adam':
-            return self.Adam()
+            return self.adam()
         elif self.optim_fn == 'Adagrad':
-            return self.Adagrad()
+            return self.adagard()
         elif self.optim_fn == 'Adadelta':
-            return self.Adadelta()
+            return self.adadelta()
         elif self.optim_fn == 'RMSProp':
-            return self.RMSProp()
+            return self.rms_prop()
         else:
           raise 'No such optimization function'
 
     # Stochastic Gradient Descent optimization function
-    def SGD(self):
+    def stochastic_gradient_descent(self):
         if self.t < 1: print('using SGD')
 
         self.t += 1
@@ -1770,7 +1770,7 @@ class Optimizer:
                 self.parameters[p].data -= self.lr * self.parameters[p].grad
 
     # Adam optimization function
-    def Adam(self):
+    def adam(self):
         # useful: https://arxiv.org/pdf/1412.6980.pdf
         if self.t < 1: print('using Adam')
 
@@ -1793,7 +1793,7 @@ class Optimizer:
             self.parameters[p].data -= self.lr * m_cap / (np.sqrt(v_cap) + self.eps)
 
     # Adagrad optimization function
-    def Adagrad(self):
+    def adagard(self):
         if self.t < 1: print('using Adagrad')
 
         self.t += 1
@@ -1806,7 +1806,7 @@ class Optimizer:
             self.parameters[p].data -= self.lr * self.parameters[p].grad / np.sqrt(self.m[p] + self.eps)
 
     # Adadelta optimization function
-    def Adadelta(self):
+    def adadelta(self):
         # useful: https://arxiv.org/pdf/1212.5701.pdf
         if self.t < 1: print('using Adadelta')
 
@@ -1826,7 +1826,7 @@ class Optimizer:
             self.parameters[p].data += delta
 
     # RMSProp optimization function
-    def RMSProp(self):
+    def rms_prop(self):
         # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
         if self.t < 1: print('using RMSProp')
 
