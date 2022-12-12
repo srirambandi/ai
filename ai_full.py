@@ -1492,7 +1492,7 @@ class Maxpool2d(Module):
         super(Maxpool2d, self).__init__()
 
         if stride is None:
-            stride = Kernel_size
+            stride = kernel_size
         if not isinstance(kernel_size, tuple):
             kernel_size = (kernel_size, kernel_size)
         if not isinstance(stride, tuple):

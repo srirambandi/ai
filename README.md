@@ -164,6 +164,10 @@ I want to implement every model in the below Deep Learning Toolkit picture [sour
 
 ![DL Toolkit](/assets/dl_toolbox.jpeg)
 
+Goals Progress:
+NTM - https://arxiv.org/abs/1410.5401
+Transformer - https://arxiv.org/abs/1706.03762
+
 ### License
 
 MIT
