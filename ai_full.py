@@ -24,7 +24,7 @@ class Parameter:
         self.grad = grad
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
 
-        # node id - in the bfs like graph walk during forward pass, the node numeber
+        # node id - in the bfs like graph walk during forward pass, the node number
         # of the path ie., the latest backward op of which this parameter was an output
         self.node_id = node_id
 
@@ -121,8 +121,7 @@ class Parameter:
         if return_scalar:
             return self.data[key]
         else:
-            return Parameter(data=np.expand_dims(self.data[key], axis=axis),
-                             grad=np.expand_dims(self.grad[key], axis=axis))
+            return self.graph.index(self, key, axis)
 
     def __add__(self, other):
 
@@ -960,6 +959,23 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return outs_list
+    
+    def index(self, x, key, axis=()):
+        out = Parameter(data=np.expand_dims(x.data[key], axis=axis), graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('index')
+                if x.eval_grad:
+                    x.grad[key] += out.grad
+
+                # return x.grad
+
+            node = {'func': '[,]', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
 
     def cat(self, inputs_list, axis=0):
         indices = [input.shape[axis] for input in inputs_list]
