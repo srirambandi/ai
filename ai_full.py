@@ -82,8 +82,8 @@ class Parameter:
             assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
 
     def __repr__(self):
-        parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:\n'.format(self.shape, self.eval_grad)
-        parameter_schema += 'Data: {}'.format(self.data)
+        parameter_schema = f'Parameter(shape={self.shape}, eval_grad={self.eval_grad}) containing:\n'
+        parameter_schema += f'Data: {self.data}'
 
         return parameter_schema
 
@@ -104,31 +104,25 @@ class Parameter:
         else:
             to_node_id = to.node_id + 1  # execute backward  to just before this node
 
-        for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
+        for node in reversed(self.graph.nodes[to_node_id:self.node_id + 1]):
             node['backprop_op']()       # executing the back-propagation operation
 
     def __getitem__(self, key):
 
-        axis = []
-        return_scalar = True
-        for _ in range(len(key)):
-            if isinstance(key[_], int):
-                axis.append(_)
-            if isinstance(key[_], slice):
-                return_scalar = False
-        axis = tuple(axis)
+        return_scalar = all([isinstance(i, int) for i in key])
+        new_key = tuple([slice(i, i + 1) if isinstance(i, int) else i for i in key])
 
         if return_scalar:
             return self.data[key]
         else:
-            return self.graph.index(self, key, axis)
+            return self.graph.getitem(self, new_key)
 
     def __add__(self, other):
 
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.add() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.add() with axis argument.')
 
         return self.graph.add(self, other)
 
@@ -137,7 +131,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.subtract() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.subtract() with axis argument.')
 
         return self.graph.subtract(self, other)
 
@@ -146,7 +140,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.multiply() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.multiply() with axis argument.')
 
         return self.graph.multiply(self, other)
 
@@ -162,7 +156,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, 'Objects not of same shape. Use G.divide() with axis argument'
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.divide() with axis argument.')
 
         return self.graph.divide(self, other)
 
@@ -960,8 +954,8 @@ class ComputationalGraph:
 
         return outs_list
     
-    def index(self, x, key, axis=()):
-        out = Parameter(data=np.expand_dims(x.data[key], axis=axis), graph=self)
+    def getitem(self, x, key):
+        out = Parameter(data=x.data[key], graph=self)
 
         if self.grad_mode:
             def backward():
