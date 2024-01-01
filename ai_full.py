@@ -893,10 +893,18 @@ class ComputationalGraph:
 
         return out
 
-    def softmax(self, z):   # calculates probs for the unnormalized log probabilities of previous layer
+    def softmax(self, z, axis=0):   # calculates probs for the unnormalized log probabilities of previous layer
         shape = z.shape
         out = Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.exp(z.data - np.max(z.data)) / np.sum(np.exp(z.data - np.max(z.data)), axis=0).reshape(1, -1)
+        
+        # Subtracting the max for numerical stability
+        e_z = np.exp(z.data - np.max(z.data, axis=axis, keepdims=True))
+
+        # Sum along the specified axis
+        sum_e_z = np.sum(e_z, axis=axis, keepdims=True)
+        
+        # Softmax calculation
+        out.data = e_z / sum_e_z
 
         if self.grad_mode:
             def backward():
