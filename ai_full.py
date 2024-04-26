@@ -8,6 +8,7 @@ MIT License
 """
 
 import numpy as np
+from typing import Callable, List
 
 
 # the Parameter object: stores weights and derivatives of weights(after backprop)
@@ -171,6 +172,14 @@ class Parameter:
         self.shape = tuple(reversed(self.shape))
 
         return self
+
+
+class ComputationalNode:
+    def __init__(self, func: str, inputs: List[Parameter], outputs: List[Parameter], backprop_op: Callable):
+        self.func = func
+        self.inputs = inputs
+        self.outputs = outputs
+        self.backprop_op = backprop_op
 
 
 # Computational Graph wannabe: stores the backward operation for every
@@ -893,7 +902,7 @@ class ComputationalGraph:
 
         return out
 
-    def softmax(self, z, axis=0):   # calculates probs for the unnormalized log probabilities of previous layer
+    def softmax(self, z, axis=0):   # element wise softmax activations
         shape = z.shape
         out = Parameter(shape, init_zeros=True, graph=self)
         
@@ -910,8 +919,26 @@ class ComputationalGraph:
             def backward():
                 # print('softmax')
                 if z.eval_grad:
-                    # directly coding the end result instead of formula - easy this way
-                    z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
+                    # >>> Old Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
+                    # >>> and doesn't handle softmx of multidimensional arrays
+                    # # directly coding the end result instead of formula - easy this way
+                    # z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
+
+                    # >>> New Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
+                    # >>> and handles softmx of multidimensional arrays
+                    out_i = out.data[:, np.newaxis, :, :]
+                    out_j = out.data[np.newaxis, :, :, :]
+
+                    jacobian = -out_i * out_j  # For i != j
+                    ii_indices = np.arange(out.data.shape[0])
+                    print(ii_indices.shape, ii_indices)
+                    jacobian[ii_indices, ii_indices, :, :] += out.data * (1 - out.data)  # Adding the diagonal part
+
+                    # Now, apply this jacobian to grad_out
+                    grad_out_expanded = out.grad[:, np.newaxis, :, :]  # Expanding dims for correct broadcasting
+                    jacobian_prod = jacobian * grad_out_expanded
+                    print(jacobian_prod.shape, jacobian.shape, grad_out_expanded.shape)
+                    z.grad += np.sum(jacobian_prod, axis=0)  # Sum over the softmax dimension
 
                 # return z.grad
 
