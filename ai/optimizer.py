@@ -36,7 +36,7 @@ class Optimizer:
                 for parameter in self.parameters:
                     self.v.append(np.zeros(parameter.shape))
 
-    def __str__(self):
+    def __repr__(self):
         return('Optimizer(optim_fn={}, lr={}, momentum={})'.format(
             self.optim_fn, self.lr, self.momentum))
 
@@ -54,20 +54,20 @@ class Optimizer:
         # useful: https://arxiv.org/pdf/1609.04747.pdf
 
         if self.optim_fn == 'SGD':
-            return self.SGD()
+            return self.stochastic_gradient_descent()
         elif self.optim_fn == 'Adam':
-            return self.Adam()
+            return self.adam()
         elif self.optim_fn == 'Adagrad':
-            return self.Adagrad()
+            return self.adagard()
         elif self.optim_fn == 'Adadelta':
-            return self.Adadelta()
+            return self.adadelta()
         elif self.optim_fn == 'RMSProp':
-            return self.RMSProp()
+            return self.rms_prop()
         else:
           raise 'No such optimization function'
 
     # Stochastic Gradient Descent optimization function
-    def SGD(self):
+    def stochastic_gradient_descent(self):
         if self.t < 1: print('using SGD')
 
         self.t += 1
@@ -85,13 +85,13 @@ class Optimizer:
                 self.parameters[p].data -= self.lr * self.parameters[p].grad
 
     # Adam optimization function
-    def Adam(self):
+    def adam(self):
         # useful: https://arxiv.org/pdf/1412.6980.pdf
         if self.t < 1: print('using Adam')
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Update biased first moment estimate
             self.m[p] = self.beta1 * self.m[p] + (1 - self.beta1) * self.parameters[p].grad
 
@@ -108,12 +108,12 @@ class Optimizer:
             self.parameters[p].data -= self.lr * m_cap / (np.sqrt(v_cap) + self.eps)
 
     # Adagrad optimization function
-    def Adagrad(self):
+    def adagard(self):
         if self.t < 1: print('using Adagrad')
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # update memory
             self.m[p] += self.parameters[p].grad * self.parameters[p].grad
 
@@ -121,13 +121,13 @@ class Optimizer:
             self.parameters[p].data -= self.lr * self.parameters[p].grad / np.sqrt(self.m[p] + self.eps)
 
     # Adadelta optimization function
-    def Adadelta(self):
+    def adadelta(self):
         # useful: https://arxiv.org/pdf/1212.5701.pdf
         if self.t < 1: print('using Adadelta')
 
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Accumulate Gradient:
             self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
 
@@ -139,19 +139,19 @@ class Optimizer:
 
             # Apply Update:
             self.parameters[p].data += delta
-            
+
     # RMSProp optimization function
-    def RMSProp(self):
+    def rms_prop(self):
         # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
         if self.t < 1: print('using RMSProp')
-            
+
         self.t += 1
         for p in range(len(self.parameters)):
-            
+
             # Accumulating moving average of the square of the Gradient:
             self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
-            
+
             # Apply Update:
             self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.m[p]) + self.eps)
-            
+
     #define optimizers

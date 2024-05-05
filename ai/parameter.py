@@ -5,7 +5,7 @@ import ai.graph
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, eval_grad=True, node_id=None, graph=None,
+    def __init__(self, shape=(0, 0), data=None, grad=None, eval_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low=-1.0, high = 1.0,
                 normal=False, mean=0.0, std=0.01):
@@ -13,9 +13,10 @@ class Parameter:
         # properties
         self.shape = shape
         self.data = data
+        self.grad = grad
         self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
 
-        # node id - in the bfs like graph walk during forward pass, the node numeber
+        # node id - in the bfs like graph walk during forward pass, the node number
         # of the path ie., the latest backward op of which this parameter was an output
         self.node_id = node_id
 
@@ -43,7 +44,8 @@ class Parameter:
 
         if self.data is not None:
             # initiating weights with passed data object of kind list/numpy-ndarray
-            self.data = np.array(self.data)
+            if not isinstance(self.data, np.ndarray):
+                self.data = np.array(self.data)
             self.shape = self.data.shape   # resolving conflict with passed shape and data shape
 
         elif self.init_zeros:
@@ -64,11 +66,16 @@ class Parameter:
             self.data = np.random.normal(self.mean, self.std, self.shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
-        self.grad = np.zeros(self.shape)
+        if self.grad is None:
+            self.grad = np.zeros(self.shape)
+        else:
+            if not isinstance(self.grad, np.ndarray):
+                self.grad = np.array(self.grad)
+            assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
 
-    def __str__(self):
-        parameter_schema = 'Parameter(shape={}, eval_grad={}) containing:\n'.format(self.shape, self.eval_grad)
-        parameter_schema += 'Data: {}'.format(self.data)
+    def __repr__(self):
+        parameter_schema = f'Parameter(shape={self.shape}, eval_grad={self.eval_grad}) containing:\n'
+        parameter_schema += f'Data: {self.data}'
 
         return parameter_schema
 
@@ -81,22 +88,33 @@ class Parameter:
             return
 
         if grad is not None:
-            self.grad = np.array(grad)
+            if not isinstance(grad, np.ndarray):
+                self.grad = np.array(grad)
 
         if to is None:
             to_node_id = 0    # execute backward all the way to start
         else:
             to_node_id = to.node_id + 1  # execute backward  to just before this node
 
-        for node in reversed(self.graph.nodes[to_node_id:int(self.node_id) + 1]):
+        for node in reversed(self.graph.nodes[to_node_id:self.node_id + 1]):
             node['backprop_op']()       # executing the back-propagation operation
+
+    def __getitem__(self, key):
+
+        return_scalar = all([isinstance(i, int) for i in key])
+        new_key = tuple([slice(i, i + 1) if isinstance(i, int) else i for i in key])
+
+        if return_scalar:
+            return self.data[key]
+        else:
+            return self.graph.getitem(self, new_key)
 
     def __add__(self, other):
 
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.add() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.add() with axis argument.')
 
         return self.graph.add(self, other)
 
@@ -105,7 +123,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.subtract() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.subtract() with axis argument.')
 
         return self.graph.subtract(self, other)
 
@@ -114,7 +132,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, ('Objects not of same shape. Use G.multiply() with axis argument', self.shape, other.shape)
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.multiply() with axis argument.')
 
         return self.graph.multiply(self, other)
 
@@ -130,7 +148,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, eval_grad=False, graph=self.graph)
 
-        assert self.shape == other.shape, 'Objects not of same shape. Use G.divide() with axis argument'
+        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.divide() with axis argument.')
 
         return self.graph.divide(self, other)
 

@@ -11,7 +11,7 @@ class Dropout(Module):
         self.p = p
         self.graph = graph
 
-    def __str__(self):
+    def __repr__(self):
         return('Dropout(p={})'.format(self.p))
 
     def __call__(self, x):  # easy callable
@@ -23,5 +23,5 @@ class Dropout(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         out = self.graph.dropout(x, p=self.p)
-        
+
         return out

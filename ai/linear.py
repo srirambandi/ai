@@ -20,7 +20,7 @@ class Linear(Module):
         self.W = Parameter((self.output_features, self.input_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
         self.b = Parameter((self.output_features, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
-    def __str__(self):
+    def __repr__(self):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
             self.input_features, self.output_features, self.bias))
 

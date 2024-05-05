@@ -19,10 +19,12 @@ class BatchNorm(Module):
         shape = (*self.hidden_shape, 1)
         self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
         self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
-        self.m = np.sum(np.zeros(shape), axis=self.axis, keepdims=True) / shape[self.axis]    # moving mean
-        self.v = np.sum(np.ones(shape), axis=self.axis, keepdims=True) / shape[self.axis]     # moving variance
+        self.m = Parameter(data=np.sum(np.zeros(shape), axis=self.axis,
+                     keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving mean - not trainable
+        self.v = Parameter(data=np.sum(np.ones(shape), axis=self.axis,
+                     keepdims=True) / shape[self.axis], eval_grad=False, graph=self.graph)    # moving variance - not trainable
 
-    def __str__(self):
+    def __repr__(self):
         return('BatchNorm({}, axis={}, momentum={}, bias={})'.format(
             self.hidden_shape, self.axis, self.momentum, self.bias))
 
@@ -45,16 +47,16 @@ class BatchNorm(Module):
             centered = self.graph.subtract(x, mean, axis=self.axis)
             var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=self.axis), batch_size)
 
-            self.m = self.momentum * self.m + (1 - self.momentum) * mean.data
-            self.v = self.momentum * self.v + (1 - self.momentum) * var.data
+            self.m.data = self.momentum * self.m.data + (1 - self.momentum) * mean.data
+            self.v.data = self.momentum * self.v.data + (1 - self.momentum) * var.data
 
             # normalize the data to zero mean and unit variance
             normalized = self.graph.multiply(centered, self.graph.power(var, -0.5), axis=self.axis)
 
         else:   # testing
 
-            centered = np.subtract(x.data, self.m)
-            normalized = np.multiply(centered, np.power(self.v + 1e-6, -0.5))
+            centered = np.subtract(x.data, self.m.data)
+            normalized = np.multiply(centered, np.power(self.v.data + 1e-6, -0.5))
             normalized = Parameter(data=normalized, eval_grad=False, graph=self.graph)
 
         # scale and shift

@@ -40,12 +40,11 @@ def draw_graph(filename=None, format='svg', graph=G):
             # dot.edge(str(id(output)), str(id(cell['backprop_op'])), color='red')
 
     dot.render(format=format, filename=filename, directory='assets', cleanup=True)
-    
+
 
 # clip the gradients of parameters by value
 def clip_grad_value(parameters, clip_value):
-    
+
     for p in parameters:
-        
         # clip gradients by value
         p.grad = np.clip(p.grad, -clip_value, clip_value)

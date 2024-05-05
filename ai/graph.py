@@ -1,6 +1,17 @@
 import numpy as np
 import ai.parameter
 
+from typing import Callable, List
+
+
+# Compuatational Node that holds the op, the op's inputs, outputs and the corresponding backprop
+class ComputationalNode:
+    def __init__(self, func: str, inputs: List[ai.parameter.Parameter], outputs: List[ai.parameter.Parameter], backprop_op: Callable):
+        self.func = func
+        self.inputs = inputs
+        self.outputs = outputs
+        self.backprop_op = backprop_op
+
 
 # Computational Graph wannabe: stores the backward operation for every
 # forward operation during forward-propagation, in a breadth-fist manner
@@ -152,7 +163,7 @@ class ComputationalGraph:
         return out
 
     def log(self, h):   # element wise logarithm
-        out = ai.parameter.Parameter(data=np.log(h.data + 1e-8), graph=self)
+        out = ai.parameter.Parameter(data=np.log(h.data + 1e-8), graph=self)     # numerical stability for values ~0
 
         if self.grad_mode:
             def backward():
@@ -169,16 +180,83 @@ class ComputationalGraph:
         return out
 
     # layers functions
+    def conv1d(self, x, K, s=(1,), p=(0,)):
+        # faster 1d convolution operation
+
+        if not isinstance(s, tuple):
+            s = (s,)
+        if not isinstance(p, tuple):
+            p = (p,)
+
+        C = K.shape[1]      # number of input channels
+        F = K.shape[0]      # number of output filters
+        i = x.shape[1:-1]   # input channel shape
+        k = K.shape[2:]     # kernel filter shape
+        N = x.shape[-1]     # Batch size
+
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        pad_x = np.pad(x.data, ((0, 0), (*p, *p), (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (C, *k, *o, N)
+        strides = (pad_i[0] * N, N, s[0] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
+        x_cols = x_cols.reshape(C * k[0], o[0] * N)
+
+        # convolution operation - matrix multiplication of strided array with kernel
+        out = K.data.reshape(F, -1).dot(x_cols)
+
+        # Reshape the output
+        out = out.reshape(F, *o, N)
+        out = np.ascontiguousarray(out)
+
+        out = ai.parameter.Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('conv1d')
+                if K.eval_grad:
+                    K.grad += np.ascontiguousarray(out.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape))
+
+                if x.eval_grad:
+
+                    pad_x_grad = np.zeros(pad_x.shape)
+                    for r in range(out.shape[1]):
+
+                        # solving gradient for input feature map that caused the elements in r position of every output filter
+                        # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+
+                        _ = out.grad[:, r, :].reshape(F, 1, 1, N)
+                        pad_x_grad[:, r*s[0]:r*s[0] + k[0], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+
+                    # cutting the padded portion from the input-feature-map's gradient
+                    # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
+                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], :]
+
+                # return (K.grad, x.grad)
+
+            node = {'func': 'conv1d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
     def conv2d_old(self, x, K, s=(1, 1), p=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         # 2d convolution operation - simple but inefficient implementation
         # Conv2d lasyer uses conv2d_faster for faster computation
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
             p = (p, p)
-        
+
         F = K.shape[0]     # number of output filters
         C = K.shape[1]     # number of input channels
         k = K.shape[2:]    # don't confuse b/w K(big) - the kernel set and k(small) - a single kernel's shape, of some cth-channel in a kth-filter
@@ -247,7 +325,7 @@ class ComputationalGraph:
 
     def conv2d(self, x, K, s=(1, 1), p=(0, 0)):
         # faster 2d convolution operation
-        
+
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
@@ -315,7 +393,7 @@ class ComputationalGraph:
 
     def conv_transpose2d_old(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         # 2d convolutional transpose operation - simple but inefficient implementation
         # ConvTranspose2d lasyer uses conv_transpose2d_faster for faster computation
         if not isinstance(s, tuple):
@@ -386,7 +464,7 @@ class ComputationalGraph:
 
     def conv_transpose2d(self, x, K, s=(1, 1), p=(0, 0), a=(0, 0)):
         # faster 2d convolution operation
-        
+
         if not isinstance(s, tuple):
             s = (s, s)
         if not isinstance(p, tuple):
@@ -453,7 +531,7 @@ class ComputationalGraph:
 
     def max_pool2d(self, x, k=None, s=None, p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
-        
+
         if s is None:
             s = k
         if not isinstance(k, tuple):
@@ -491,6 +569,58 @@ class ComputationalGraph:
                     pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] = np.where(pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] < 0, 0, 1.0)
                     out[:, r, c, :][np.isnan(out[:, r, c, :])] = 0
 
+        out = ai.parameter.Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('maxpool2d')
+                if x.eval_grad:
+
+                    for r in range(out.shape[1]):
+                        for c in range(out.shape[2]):
+
+                            # multiplying each 'mask' like volume(single 1s in the volumes along all batches) with the gradient
+                            # at region whose value was caused by the mask region's input
+                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= out.grad[:, r, c, :].reshape(F, 1, 1, N)
+
+                    # cutting the padded portion from the input gradient
+                    # and updating the gradient of actual input(non-padded) - unpadding and updating
+                    x.grad += pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :]
+
+                # return (x.grad)
+
+            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
+    def max_pool2d_faster(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params)
+        # useful: https://arxiv.org/pdf/1603.07285.pdf
+
+        F = x.shape[0]     # number of input filter planes
+        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
+        N = x.shape[-1]    # Batch size
+
+        # Figure out output dimensions
+        o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
+        pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
+
+        # padding the input
+        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+
+        # get strided view of padded input by picking appropriate strides
+        shape = (F, *k, *o, N)
+        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
+        strides = pad_x.itemsize * np.array(strides)
+        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        x_cols = np.ascontiguousarray(stride_x)
+        x_cols = x_cols.reshape(F, k[0] * k[1], *o, N)
+
+        # store indices of the max location of each patch
+        max_indices = np.argmax(x_cols, axis=1)
+
+        out = np.max(x_cols, axis=1)
         out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
@@ -603,17 +733,46 @@ class ComputationalGraph:
 
         return out
 
-    def softmax(self, z):   # calculates probs for the unnormalized log probabilities of previous layer
+    def softmax(self, z, axis=0):   # element wise softmax activations
         shape = z.shape
         out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.exp(z.data - np.max(z.data)) / np.sum(np.exp(z.data - np.max(z.data)), axis=0).reshape(1, -1)
+        
+        # Subtracting the max for numerical stability
+        e_z = np.exp(z.data - np.max(z.data, axis=axis, keepdims=True))
+
+        # Sum along the specified axis
+        sum_e_z = np.sum(e_z, axis=axis, keepdims=True)
+        
+        # Softmax calculation
+        out.data = e_z / sum_e_z
 
         if self.grad_mode:
             def backward():
                 # print('softmax')
                 if z.eval_grad:
-                    # directly coding the end result instead of formula - easy this way
-                    z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
+                    # >>> Old Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
+                    # >>> and doesn't handle softmx of multidimensional arrays
+                    # # directly coding the end result instead of formula - easy this way
+                    # z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
+
+                    # >>> New Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
+                    # >>> and handles softmx of multidimensional arrays
+                    out_i = np.expand_dims(out.data, axis=axis + 1)
+                    out_j = np.expand_dims(out.data, axis=axis)
+
+                    jacobian = -out_i * out_j  # For i != j
+                    ii_indices = np.arange(out.data.shape[axis])
+                    if axis == 0:
+                        jacobian[ii_indices, ii_indices, :, :] = out.data * (1 - out.data)  # Adding the diagonal part
+                    elif axis == 1:
+                        jacobian[:, ii_indices, ii_indices, :] = out.data * (1 - out.data)
+                    elif axis == 2:
+                        jacobian[:, :, ii_indices, ii_indices] = out.data * (1 - out.data)
+
+                    # Now, apply this jacobian to grad_out
+                    grad_out_expanded = np.expand_dims(out.grad, axis=axis + 1)  # Expanding dims for correct broadcasting
+                    jacobian_prod = jacobian * grad_out_expanded
+                    z.grad += np.sum(jacobian_prod, axis=axis)  # Sum over the softmax dimension
 
                 # return z.grad
 
@@ -650,10 +809,12 @@ class ComputationalGraph:
 
         if self.grad_mode:
             def backward():
-                #print('split')
+                # print('split')
                 outs_grads = [o.grad for o in outs_list]
                 if W.eval_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
+
+                # return W.grad
 
             node = {'func': 'split', 'inputs': [W], 'outputs': outs_list, 'backprop_op': lambda: backward()}
             for out in outs_list:
@@ -661,6 +822,44 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return outs_list
+    
+    def getitem(self, x, key):
+        out = ai.parameter.Parameter(data=x.data[key], graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('index')
+                if x.eval_grad:
+                    x.grad[key] += out.grad
+
+                # return x.grad
+
+            node = {'func': '[,]', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
+    def cat(self, inputs_list, axis=0):
+        indices = [input.shape[axis] for input in inputs_list]
+        indices = [sum(indices[:_+1]) for _ in range(len(indices))]
+        out = ai.parameter.Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('cat')
+                input_grads = np.split(out.grad, indices, axis=axis)
+                for _ in range(len(inputs_list)):
+                    if inputs_list[_].eval_grad:
+                        inputs_list[_].grad += input_grads[_]
+
+                # return *[input.grad for input in inputs_list]
+
+            node = {'func': 'cat', 'inputs': [inputs_list], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
 
     def T(self, x):     # transpose
         out = ai.parameter.Parameter(data=x.data.T, graph=self)

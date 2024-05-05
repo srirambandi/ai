@@ -16,22 +16,22 @@ class Loss:
     def loss(self, y_out, y_true):
 
         if self.loss_fn == 'MSELoss':
-            return self.MSELoss(y_out, y_true)
+            return self.mse_loss(y_out, y_true)
         elif self.loss_fn == 'CrossEntropyLoss':
-            return self.CrossEntropyLoss(y_out, y_true)
+            return self.cross_entropy_loss(y_out, y_true)
         elif self.loss_fn == 'BCELoss':
-            return self.BCELoss(y_out, y_true)
+            return self.bce_loss(y_out, y_true)
         elif self.loss_fn == 'JSDivLoss':
-            return self.JSDivLoss(y_out, y_true)
+            return self.js_divergence_loss(y_out, y_true)
         elif self.loss_fn == 'TestLoss':
-            return self.TestLoss(y_out)
+            return self.test_loss(y_out)
         else:
           raise 'No such loss function'
 
-    def __str__(self):
+    def __repr__(self):
         return('Loss(loss_fn={})'.format(self.loss_fn))
 
-    def MSELoss(self, y_out, y_true):
+    def mse_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -48,7 +48,7 @@ class Loss:
 
         return l
 
-    def CrossEntropyLoss(self, y_out, y_true):
+    def cross_entropy_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -68,7 +68,7 @@ class Loss:
 
         return l
 
-    def BCELoss(self, y_out, y_true):
+    def bce_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -100,7 +100,7 @@ class Loss:
 
         return l
 
-    def JSDivLoss(self, y_out, y_true):
+    def js_divergence_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
@@ -129,7 +129,7 @@ class Loss:
 
         return l
 
-    def TestLoss(self, y_out):
+    def test_loss(self, y_out):
 
         batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_out.shape[-1]))

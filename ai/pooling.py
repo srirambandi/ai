@@ -23,7 +23,7 @@ class Maxpool2d(Module):
         self.padding = padding
         self.graph = graph
 
-    def __str__(self):
+    def __repr__(self):
         return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
             self.kernel_size, self.stride, self.padding))
 
@@ -36,5 +36,5 @@ class Maxpool2d(Module):
             x = Parameter(data=x, eval_grad=False, graph=self.graph)
 
         out = self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
-        
+
         return out

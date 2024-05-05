@@ -3,20 +3,20 @@ from ai.parameter import Parameter
 from ai.graph import ComputationalGraph, G
 
 
-# generic model class to add useful features like save/load model from files, get parameters etc.
+# generic module class to add useful features like save/load model from files, get parameters etc.
 class Module(object):
     def __init__(self):
         pass
 
-    def __str__(self):
-        model_schema = str(self.__class__.__name__) + '(\n'
+    def __repr__(self):
+        module_schema = str(self.__class__.__name__) + '(\n'
 
         for name, layer in self.get_module_layers().items():
-            model_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
+            module_schema += '  ' + str(name) + ': ' + str(layer) + '\n'
 
-        model_schema += ')'
+        module_schema += ')'
 
-        return model_schema
+        return module_schema
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')
@@ -69,7 +69,7 @@ class Module(object):
 
         print('Successfully loaded model from {}'.format(file))
 
-    def get_module_layers(self):   # returns a dictionary of parametrized layers in the model
+    def get_module_layers(self):   # returns a dictionary of parametrized layers in the module
 
         attributes = self.__dict__
         layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'Maxpool2d', 'Dropout']
@@ -81,18 +81,19 @@ class Module(object):
 
         return module_layers
 
-    def get_module_params(self):    # returns a dictionary of parameters in the model
+    def get_module_params(self):    # returns a dictionary of parameters in the module
 
         attributes = self.__dict__
 
         module_params = dict()
         for name in attributes:
             if attributes[name].__class__.__name__ in ['Parameter']:
-                module_params[name] = attributes[name]
+                if attributes[name].eval_grad:
+                    module_params[name] = attributes[name]
 
         return module_params
 
-    def parameters(self):   # access parameters of the model with this function
+    def parameters(self):   # access parameters of the module with this function
 
         all_params = list()
 
