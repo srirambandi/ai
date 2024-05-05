@@ -926,19 +926,24 @@ class ComputationalGraph:
 
                     # >>> New Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
                     # >>> and handles softmx of multidimensional arrays
-                    out_i = out.data[:, np.newaxis, :, :]
-                    out_j = out.data[np.newaxis, :, :, :]
+                    out_i = np.expand_dims(out.data, axis=axis + 1)
+                    out_j = np.expand_dims(out.data, axis=axis)
 
                     jacobian = -out_i * out_j  # For i != j
-                    ii_indices = np.arange(out.data.shape[0])
+                    ii_indices = np.arange(out.data.shape[axis])
                     print(ii_indices.shape, ii_indices)
-                    jacobian[ii_indices, ii_indices, :, :] += out.data * (1 - out.data)  # Adding the diagonal part
+                    if axis == 0:
+                        jacobian[ii_indices, ii_indices, :, :] = out.data * (1 - out.data)  # Adding the diagonal part
+                    elif axis == 1:
+                        jacobian[:, ii_indices, ii_indices, :] = out.data * (1 - out.data)
+                    elif axis == 2:
+                        jacobian[:, :, ii_indices, ii_indices] = out.data * (1 - out.data)
 
                     # Now, apply this jacobian to grad_out
-                    grad_out_expanded = out.grad[:, np.newaxis, :, :]  # Expanding dims for correct broadcasting
+                    grad_out_expanded = np.expand_dims(out.grad, axis=axis + 1)  # Expanding dims for correct broadcasting
                     jacobian_prod = jacobian * grad_out_expanded
                     print(jacobian_prod.shape, jacobian.shape, grad_out_expanded.shape)
-                    z.grad += np.sum(jacobian_prod, axis=0)  # Sum over the softmax dimension
+                    z.grad += np.sum(jacobian_prod, axis=axis)  # Sum over the softmax dimension
 
                 # return z.grad
 
