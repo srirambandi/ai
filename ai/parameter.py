@@ -5,7 +5,7 @@ import ai.graph
 # the Parameter object: stores weights and derivatives of weights(after backprop)
 # of each layer in the model
 class Parameter:
-    def __init__(self, shape=(0, 0), data=None, grad=None, eval_grad=True, node_id=None, graph=None,
+    def __init__(self, shape=(0, 0), data=None, grad=None, requires_grad=True, node_id=None, graph=None,
                 init_zeros=False, init_ones=False, constant=1.0,
                 uniform=False, low=-1.0, high = 1.0,
                 normal=False, mean=0.0, std=0.01):
@@ -14,7 +14,7 @@ class Parameter:
         self.shape = shape
         self.data = data
         self.grad = grad
-        self.eval_grad = eval_grad  # if the parameter is a variable or an input/constant
+        self.requires_grad = requires_grad  # if the parameter is a variable or an input/constant
 
         # node id - in the bfs like graph walk during forward pass, the node number
         # of the path ie., the latest backward op of which this parameter was an output
@@ -74,7 +74,7 @@ class Parameter:
             assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
 
     def __repr__(self):
-        parameter_schema = f'Parameter(shape={self.shape}, eval_grad={self.eval_grad}) containing:\n'
+        parameter_schema = f'Parameter(shape={self.shape}, requires_grad={self.requires_grad}) containing:\n'
         parameter_schema += f'Data: {self.data}'
 
         return parameter_schema
@@ -112,7 +112,7 @@ class Parameter:
     def __add__(self, other):
 
         if not isinstance(other, Parameter):
-            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+            other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.add() with axis argument.')
 
@@ -121,7 +121,7 @@ class Parameter:
     def __sub__(self, other):
 
         if not isinstance(other, Parameter):
-            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+            other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.subtract() with axis argument.')
 
@@ -130,7 +130,7 @@ class Parameter:
     def __mul__(self, other):
 
         if not isinstance(other, Parameter):
-            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+            other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.multiply() with axis argument.')
 
@@ -139,14 +139,14 @@ class Parameter:
     def __matmul__(self, other):
 
         if not isinstance(other, Parameter):
-            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+            other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         return self.graph.dot(self, other)
 
     def __truediv__(self, other):
 
         if not isinstance(other, Parameter):
-            other = Parameter(data=other, eval_grad=False, graph=self.graph)
+            other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.divide() with axis argument.')
 
@@ -156,10 +156,11 @@ class Parameter:
         return self.graph.power(self, other)
 
     # transpose
+    @property
     def T(self):
 
-        self.data = self.data.T
-        self.grad = self.grad.T
-        self.shape = tuple(reversed(self.shape))
+        data = self.data.T
+        grad = self.grad.T
+        shape = tuple(reversed(self.shape))
 
-        return self
+        return Parameter(shape=shape, data=data, grad=grad, requires_grad=self.requires_grad, graph=self.graph)
