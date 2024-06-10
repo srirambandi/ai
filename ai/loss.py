@@ -34,10 +34,10 @@ class Loss:
     def mse_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
+            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
-        batch_size.data.fill(float(y_true.shape[-1]))
+        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size.data.fill(float(y_true.shape[0]))
 
         # L = (y_out - y_true)^2
         l = self.graph.sum(self.graph.multiply(self.graph.subtract(y_out, y_true), self.graph.subtract(y_out, y_true)))
@@ -51,12 +51,12 @@ class Loss:
     def cross_entropy_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
+            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
-        batch_size.data.fill(float(y_true.shape[-1]))
+        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size.data.fill(float(y_true.shape[0]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
+        neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
@@ -71,15 +71,15 @@ class Loss:
     def bce_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
+            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
-        batch_size.data.fill(float(y_true.shape[-1]))
+        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size.data.fill(float(y_true.shape[0]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
+        neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
-        one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
+        one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
         one.data.fill(1.0)
 
         # class 2 output: 1 - c1
@@ -103,15 +103,15 @@ class Loss:
     def js_divergence_loss(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, eval_grad=False, graph=self.graph)
+            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
-        batch_size.data.fill(float(y_true.shape[-1]))
+        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size.data.fill(float(y_true.shape[0]))
 
-        two = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
+        two = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
         two.data.fill(2.0)   # just a 2 :p
 
-        neg_one = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph)
+        neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         # mean probability: (P + Q)/2
@@ -131,8 +131,8 @@ class Loss:
 
     def test_loss(self, y_out):
 
-        batch_size = Parameter((1, 1), init_zeros=True, eval_grad=False, graph=self.graph) # mini-batch size
-        batch_size.data.fill(float(y_out.shape[-1]))
+        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size.data.fill(float(y_out.shape[0]))
 
         # a test loss score function that measures the sum of elements of each output vector as the loss of that sample
         # helps identify leaks in between samples in a batch

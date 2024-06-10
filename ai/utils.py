@@ -20,13 +20,13 @@ def draw_graph(filename=None, format='svg', graph=G):
         for input in cell['inputs']:
 
             # add the input to nodes
-            color = None if input.eval_grad else 'red'
+            color = None if input.requires_grad else 'red'
             dot.node(name=str(id(input)), label='{}'.format(input.node_id), shape='circle', color=color)
             # forward pass edge from input to op
             dot.edge(str(id(input)), str(id(cell['backprop_op'])))
 
             # # backprop pass edge from op to input
-            # if input.eval_grad:
+            # if input.requires_grad:
             #     dot.edge(str(id(cell['backprop_op'])), str(id(input)), color='red')
 
         for output in cell['outputs']:

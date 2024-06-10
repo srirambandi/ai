@@ -6,7 +6,7 @@ from ai.module import Module
 
 # maxpool2d layer - non-parametrized layer
 class Maxpool2d(Module):
-    def __init__(self, kernel_size=None, stride=None, padding=(0, 0), graph=G):
+    def __init__(self, kernel_size, stride=None, padding=0, graph=G):
         super(Maxpool2d, self).__init__()
 
         if stride is None:
@@ -33,8 +33,8 @@ class Maxpool2d(Module):
     def forward(self, x):
 
         if not isinstance(x, Parameter):
-            x = Parameter(data=x, eval_grad=False, graph=self.graph)
+            x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        out = self.graph.max_pool2d(x, k=self.kernel_size, s=self.stride, p=self.padding)
+        out = self.graph.max_pool2d(x, self.kernel_size, s=self.stride, p=self.padding)
 
         return out

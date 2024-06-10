@@ -20,7 +20,7 @@ class Dropout(Module):
     def forward(self, x):
 
         if not isinstance(x, Parameter):
-            x = Parameter(data=x, eval_grad=False, graph=self.graph)
+            x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         out = self.graph.dropout(x, p=self.p)
 

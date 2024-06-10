@@ -2,15 +2,16 @@ import numpy as np
 import ai.parameter
 
 from typing import Callable, List
+from dataclasses import dataclass
 
 
 # Compuatational Node that holds the op, the op's inputs, outputs and the corresponding backprop
+@dataclass
 class ComputationalNode:
-    def __init__(self, func: str, inputs: List[ai.parameter.Parameter], outputs: List[ai.parameter.Parameter], backprop_op: Callable):
-        self.func = func
-        self.inputs = inputs
-        self.outputs = outputs
-        self.backprop_op = backprop_op
+    func: str
+    inputs: List["Parameter"]
+    outputs = List["Parameter"]
+    backprop_op: Callable
 
 
 # Computational Graph wannabe: stores the backward operation for every
@@ -21,23 +22,21 @@ class ComputationalGraph:
         self.nodes = list()
 
     # functions required for deep learning models and their respective backward operations
-    def dot(self, W, x):    # dot product of vectors and matrices
-
-        assert W.shape[1] == x.shape[0], 'shape mismatch in dot() operation - W: {}, x: {}'.format(W.shape, x.shape)
-        out = ai.parameter.Parameter(data=np.dot(W.data, x.data), graph=self)
+    def dot(self, x, y):    # dot product of vectors and matrices
+        out = ai.parameter.Parameter(data=np.dot(x.data, y.data), graph=self)
 
         if self.grad_mode:
             def backward():
                 # useful: http://cs231n.stanford.edu/slides/2018/cs231n_2018_ds02.pdf
                 # print('dot')
-                if W.eval_grad:
-                    W.grad += np.dot(out.grad, x.data.T)
-                if x.eval_grad:
-                    x.grad += np.dot(out.grad.T, W.data).T
+                if y.requires_grad:
+                    y.grad += np.dot(x.data.T, out.grad)
+                if x.requires_grad:
+                    x.grad += np.dot(out.grad, y.data.T)
 
                 # return (x.grad, W.grad)
 
-            node = {'func': '@', 'inputs': [W, x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = {'func': '@', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -50,10 +49,10 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('add')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += out.grad
-                if y.eval_grad:
-                    y.grad += np.sum(out.grad, axis = axis).reshape(y.shape)   # in case of unequal sizes of inputs
+                if y.requires_grad:
+                    y.grad += np.sum(out.grad, axis=axis).reshape(y.shape)   # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
 
@@ -69,9 +68,9 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('subtract')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += out.grad
-                if y.eval_grad:
+                if y.requires_grad:
                     y.grad -= np.sum(out.grad, axis=axis).reshape(y.shape)  # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
@@ -88,9 +87,9 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('multiply')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += np.multiply(out.grad, y.data)
-                if y.eval_grad:
+                if y.requires_grad:
                     y.grad += np.sum(np.multiply(out.grad, x.data), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
@@ -107,9 +106,9 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('divide')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += np.multiply(out.grad, np.divide(1.0, y.data + 1e-8))
-                if y.eval_grad:
+                if y.requires_grad:
                     y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data + 1e-8))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
 
                 # return (x.grad, y.grad)
@@ -130,7 +129,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('sum')
-                if h.eval_grad:
+                if h.requires_grad:
                     h.grad += out.grad
 
                 # return h.grad
@@ -148,7 +147,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('power')
-                if h.eval_grad:
+                if h.requires_grad:
                     if exp  >= 0:
                         h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
                     else:
@@ -168,7 +167,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('log')
-                if h.eval_grad:
+                if h.requires_grad:
                     h.grad += np.multiply(out.grad, np.divide(1.0, h.data + 1e-8))
 
                 # return h.grad
@@ -188,56 +187,51 @@ class ComputationalGraph:
         if not isinstance(p, tuple):
             p = (p,)
 
-        C = K.shape[1]      # number of input channels
+        N = x.shape[0]      # Batch size
+        C = x.shape[1]      # number of input channels
+        i = x.shape[2:]     # input channel shape
         F = K.shape[0]      # number of output filters
-        i = x.shape[1:-1]   # input channel shape
         k = K.shape[2:]     # kernel filter shape
-        N = x.shape[-1]     # Batch size
 
         # Figure out output dimensions
         o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
         pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
         # padding the input
-        pad_x = np.pad(x.data, ((0, 0), (*p, *p), (0, 0)), mode='constant')
+        pad_x = np.pad(x.data, ((0, 0), (0, 0), (p[0], p[0])), mode='constant')
 
         # get strided view of padded input by picking appropriate strides
-        shape = (C, *k, *o, N)
-        strides = (pad_i[0] * N, N, s[0] * N, 1)
-        strides = pad_x.itemsize * np.array(strides)
-        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
-        x_cols = np.ascontiguousarray(stride_x)
-        x_cols = x_cols.reshape(C * k[0], o[0] * N)
+        shape = (N, C, *o, *k)
+        strides = pad_x.strides[:2] + (pad_x.strides[2]*s[0],) + pad_x.strides[2:]
+        strided_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        output = np.tensordot(strided_x, K.data, axes=([1, 3], [1, 2]))
+        output = np.transpose(out, (0, 2, 1))
 
-        # convolution operation - matrix multiplication of strided array with kernel
-        out = K.data.reshape(F, -1).dot(x_cols)
-
-        # Reshape the output
-        out = out.reshape(F, *o, N)
-        out = np.ascontiguousarray(out)
-
-        out = ai.parameter.Parameter(data=out, graph=self)
+        out = ai.parameter.Parameter(data=output, graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('conv1d')
-                if K.eval_grad:
-                    K.grad += np.ascontiguousarray(out.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape))
+                if K.requires_grad:
+                    # (N, C, o, k) x (N, F, o) -> (C, k, F)
+                    grad_k = np.tensordot(strided_x, out.grad, axes=([0, 2], [0, 2]))
+                    # (C, k, F) -> (F, C, k)
+                    K.grad += np.transpose(grad_k, (2, 0, 1))
 
-                if x.eval_grad:
+                if x.requires_grad:
 
                     pad_x_grad = np.zeros(pad_x.shape)
-                    for r in range(out.shape[1]):
+                    for r in range(out.shape[2]):
 
                         # solving gradient for input feature map that caused the elements in r position of every output filter
                         # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
 
-                        _ = out.grad[:, r, :].reshape(F, 1, 1, N)
-                        pad_x_grad[:, r*s[0]:r*s[0] + k[0], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+                        _ = out.grad[:, :, r].reshape(N, F, 1, 1)
+                        pad_x_grad[:, :, r*s[0]:r*s[0] + k[0]] += np.sum(np.multiply(_, K.data.reshape(1, *K.shape)), axis=1)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], :]
+                    x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0]]
 
                 # return (K.grad, x.grad)
 
@@ -249,6 +243,7 @@ class ComputationalGraph:
 
     def conv2d_old(self, x, K, s=(1, 1), p=(0, 0)):
         # useful: https://arxiv.org/pdf/1603.07285.pdf
+        # also useful: https://github.com/vdumoulin/conv_arithmetic/blob/master/README.md
 
         # 2d convolution operation - simple but inefficient implementation
         # Conv2d lasyer uses conv2d_faster for faster computation
@@ -286,7 +281,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('conv2d')
-                if K.eval_grad:
+                if K.requires_grad:
 
                     for r in range(out.shape[1]):
                         for c in range(out.shape[2]):
@@ -298,7 +293,7 @@ class ComputationalGraph:
                             # updating the kernel filter set gradient - there will be RxC such updates
                             K.grad += np.sum(np.multiply(_, pad_x[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
-                if x.eval_grad:
+                if x.requires_grad:
 
                     pad_x_grad = np.zeros((C, *pad_i, N))
 
@@ -323,65 +318,60 @@ class ComputationalGraph:
 
         return out
 
-    def conv2d(self, x, K, s=(1, 1), p=(0, 0)):
+    def conv2d(self, x, K, s=1, p=0):
         # faster 2d convolution operation
 
-        if not isinstance(s, tuple):
+        if not isinstance(s, tuple):  
             s = (s, s)
         if not isinstance(p, tuple):
             p = (p, p)
 
-        C = K.shape[1]      # number of input channels
+        N = x.shape[0]      # Batch size
+        C = x.shape[1]      # number of input channels
+        i = x.shape[2:]     # input channel shape
         F = K.shape[0]      # number of output filters
-        i = x.shape[1:-1]   # input channel shape
         k = K.shape[2:]     # kernel filter shape
-        N = x.shape[-1]     # Batch size
 
         # Figure out output dimensions
         o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
         pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
         # padding the input
-        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+        pad_x = np.pad(x.data, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode='constant')
 
         # get strided view of padded input by picking appropriate strides
-        shape = (C, *k, *o, N)
-        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
-        strides = pad_x.itemsize * np.array(strides)
-        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
-        x_cols = np.ascontiguousarray(stride_x)
-        x_cols = x_cols.reshape(C * k[0] * k[1], o[0] * o[1] * N)
-
-        # convolution operation - matrix multiplication of strided array with kernel
-        out = K.data.reshape(F, -1).dot(x_cols)
-
-        # Reshape the output
-        out = out.reshape(F, *o, N)
-        out = np.ascontiguousarray(out)
+        shape = (N, C, *o, *k)
+        strides = pad_x[:2].strides + (pad_x.strides[2]*s[0], pad_x.strides[3]*s[1]) + pad_x.strides[2:]
+        strided_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        out = np.tensordot(strided_x, K.data, axes=([1, 4, 5], [1, 2, 3]))
+        out = np.transpose(out, (0, 3, 1, 2))
 
         out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('conv2d')
-                if K.eval_grad:
-                    K.grad += np.ascontiguousarray(out.grad.reshape(F, -1).dot(x_cols.T).reshape(K.shape))
+                if K.requires_grad:
+                    # (N, C, o, o, k, k) x (N, F, o, o) -> (C, k, k, F)
+                    grad_k = np.tensordot(strided_x, out.grad, axes=([0, 2, 3], [0, 2, 3]))
+                    # (C, k, k, F) -> (F, C, k, k)
+                    K.grad += np.transpose(grad_k, (3, 0, 1, 2))
 
-                if x.eval_grad:
+                if x.requires_grad:
 
                     pad_x_grad = np.zeros(pad_x.shape)
-                    for r in range(out.shape[1]):
-                        for c in range(out.shape[2]):
+                    for r in range(out.shape[2]):
+                        for c in range(out.shape[3]):
 
                             # solving gradient for input feature map that caused the elements in r, c position of every output filter
-                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimention using sum
+                            # in every batch; similar to kernel gradient method, but the matrix collapses along filters dimension using sum
 
-                            _ = out.grad[:, r, c, :].reshape(F, 1, 1, 1, N)
-                            pad_x_grad[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+                            patch = out.grad[:, :, r, c].reshape(N, F, 1, 1, 1)
+                            pad_x_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += np.sum(np.multiply(patch, K.data.reshape(1, *K.shape)), axis=1)
 
                     # cutting the padded portion from the input-feature-map's gradient
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-                    x.grad += pad_x_grad[:, p[0]:pad_x_grad.shape[1]-p[0], p[1]:pad_x_grad.shape[2]-p[1], :]
+                    x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0], p[1]:pad_x_grad.shape[3]-p[1]]
 
                 # return (K.grad, x.grad)
 
@@ -436,7 +426,7 @@ class ComputationalGraph:
                 pad_out_grad = np.pad(out.grad, ((0, 0), p, p, (0, 0)), mode='constant')
                 pad_out_grad = pad_out_grad.reshape(1, *pad_out_grad.shape)
 
-                if K.eval_grad:
+                if K.requires_grad:
 
                     for r in range(x.shape[1]):
                         for c in range(x.shape[2]):
@@ -446,7 +436,7 @@ class ComputationalGraph:
                             # updating the kernel filter set gradient - there will be RxC such updates
                             K.grad += np.sum(np.multiply(_, pad_out_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :]), axis = -1)
 
-                if x.eval_grad:
+                if x.requires_grad:
 
                     for r in range(x.shape[1]):
                         for c in range(x.shape[2]):
@@ -472,27 +462,27 @@ class ComputationalGraph:
         if not isinstance(a, tuple):
             a = (a, a)
 
-        F = K.shape[0]      # number of input filters
+        N = x.shape[0]      # Batch size
+        F = x.shape[1]      # number of input filters
+        i = x.shape[1:-1]   # input filter shape
         C = K.shape[1]      # number of output channels
-        i = x.shape[1:-1]   # input channel shape
         k = K.shape[2:]     # kernel filter shape
-        N = x.shape[-1]     # Batch size
 
         o = tuple((map(lambda i, k, s, p, a: int((i - 1)*s + a + k - 2*p), i, k, s, p, a)))
         pad_o = tuple(map(lambda o, p: o + 2*p, o, p))
 
-        pad_out = np.zeros((C, *pad_o, N))
+        pad_out = np.zeros((N, C, *pad_o))
 
-        for r in range(x.shape[1]):
-            for c in range(x.shape[2]):
+        for r in range(x.shape[2]):
+            for c in range(x.shape[3]):
 
                 # computing output image feature map by convolving across each element of input feature map with kernel
-                _ = x.data[:, r, c, :].reshape(F, 1, 1, 1, N)
-                pad_out[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] += np.sum(np.multiply(_, K.data.reshape(*K.shape, 1)), axis=0)
+                patch = x.data[:, :, r, c].reshape(N, F, 1, 1, 1)
+                pad_out[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += np.sum(np.multiply(patch, K.data.reshape(1, *K.shape)), axis=1)
 
         # cutting the padded portion from the input-feature-map's gradient
         # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
-        out = pad_out[:, p[0]:pad_out.shape[1]-p[0], p[1]:pad_out.shape[2]-p[1], :]
+        out = pad_out[:, :, p[0]:pad_out.shape[2]-p[0], p[1]:pad_out.shape[3]-p[1]]
 
         out = ai.parameter.Parameter(data=out, graph=self)
 
@@ -501,25 +491,26 @@ class ComputationalGraph:
                 # print('conv_transpose2d')
 
                 # padding the output gradient
-                pad_out_grad = np.pad(out.grad, ((0, 0), p, p, (0, 0)), mode='constant')
+                pad_out_grad = np.pad(out.grad, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode='constant')
 
                 # get strided view of padded output gradient by picking appropriate strides
-                shape = (C, *k, *i, N)
-                strides = (pad_o[0] * pad_o[1] * N, pad_o[1] * N, N, s[0] * pad_o[1] * N, s[1] * N, 1)
-                strides = pad_out_grad.itemsize * np.array(strides)
-                stride_out_grad = np.lib.stride_tricks.as_strided(pad_out_grad, shape=shape, strides=strides)
-                out_grad_cols = np.ascontiguousarray(stride_out_grad)
-                out_grad_cols = out_grad_cols.reshape(C * k[0] * k[1], i[0] * i[1] * N)
+                shape = (N, C, *i, *k)
+                strides = pad_out_grad.strides[:2] + (pad_out_grad.strides[2]*s[0], pad_out_grad.strides[3]*s[1]) + pad_out_grad.strides[2:]
+                strided_out_grad = np.lib.stride_tricks.as_strided(pad_out_grad, shape=shape, strides=strides)
+                # out_grad_cols = np.ascontiguousarray(strided_out_grad)
+                # out_grad_cols = out_grad_cols.reshape(C * k[0] * k[1], i[0] * i[1] * N)
 
-                if K.eval_grad:
-                    K.grad += np.ascontiguousarray(x.data.reshape(F, -1).dot(out_grad_cols.T).reshape(K.shape))
+                if K.requires_grad:
+                    # (N, C, i, i, k, k) x (N, F, i, i) -> (C, k, k, F)
+                    grad_k += np.tensordot(strided_out_grad, x.data, axes=([0, 2, 3], [0, 2, 3]))
+                    # (C, k, k, F) -> (F, C, k, k)
+                    K.grad += np.transpose(grad_k, (3, 0, 1, 2))
 
-                if x.eval_grad:
-                    x_grad = K.data.reshape(F, -1).dot(out_grad_cols)
-
-                    # Reshape the gradient
-                    x_grad = x_grad.reshape(F, *i, N)
-                    x.grad += np.ascontiguousarray(x_grad)
+                if x.requires_grad:
+                    # (N, C, i, i, k, k) x (F, C, k, k) -> (N, i, i, F)
+                    grad_x = np.tensordot(strided_out_grad, K.data, axes=([1, 4, 5], [1, 2, 3]))
+                    # (N, i, i, F) -> (N, F, i, i)
+                    x.grad += np.transpose(grad_x, (0, 3, 1, 2))
 
                 # return (K.grad, x.grad)
 
@@ -529,7 +520,7 @@ class ComputationalGraph:
 
         return out
 
-    def max_pool2d(self, x, k=None, s=None, p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
+    def max_pool2d_old(self, x, k=None, s=None, p=(0, 0)):    # maxpool layer(no params), used generally after Conv2d - simple but inefficient implementation
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
         if s is None:
@@ -574,7 +565,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('maxpool2d')
-                if x.eval_grad:
+                if x.requires_grad:
 
                     for r in range(out.shape[1]):
                         for c in range(out.shape[2]):
@@ -595,49 +586,59 @@ class ComputationalGraph:
 
         return out
 
-    def max_pool2d_faster(self, x, k=(2, 2), s=(2,2), p=(0, 0)):    # maxpool layer(no params)
+    def max_pool2d(self, x, k, s=None, p=0):    # maxpool layer(no params)
         # useful: https://arxiv.org/pdf/1603.07285.pdf
 
-        F = x.shape[0]     # number of input filter planes
-        i = x.shape[1:-1]  # input shape of any channel of the input feature map before padding
-        N = x.shape[-1]    # Batch size
+        if s is None:
+            s = k
+        if not isinstance(k, tuple):
+            k = (k, k)
+        if not isinstance(s, tuple):  
+            s = (s, s)
+        if not isinstance(p, tuple):
+            p = (p, p)
+
+        N = x.shape[0]      # Batch size
+        F = x.shape[1]      # number of input filter planes
+        i = x.shape[2:]     # input shape of any channel of the input feature map before padding
 
         # Figure out output dimensions
         o = tuple(map(lambda i, k, s, p: int((i + 2*p - k)/s + 1), i, k, s, p))
         pad_i = tuple(map(lambda i, p: i + 2*p, i, p))
 
         # padding the input
-        pad_x = np.pad(x.data, ((0, 0), p, p, (0, 0)), mode='constant')
+        pad_x = np.pad(x.data, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode='constant')
 
         # get strided view of padded input by picking appropriate strides
-        shape = (F, *k, *o, N)
-        strides = (pad_i[0] * pad_i[1] * N, pad_i[1] * N, N, s[0] * pad_i[1] * N, s[1] * N, 1)
-        strides = pad_x.itemsize * np.array(strides)
-        stride_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
-        x_cols = np.ascontiguousarray(stride_x)
-        x_cols = x_cols.reshape(F, k[0] * k[1], *o, N)
+        shape = (N, F, *o, *k)
+        strides = pad_x.strides[:2] + (pad_x.strides[2]*s[0], pad_x.strides[3]*s[1]) + pad_x.strides[2:]
+        strided_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
+        # fatten the kernel window to a single column, so that we can apply max operation along the last axis
+        strided_x_col = strided_x.reshape(N, F, *o, k[0] * k[1])
 
-        # store indices of the max location of each patch
-        max_indices = np.argmax(x_cols, axis=1)
+        out = np.max(strided_x_col, axis=-1)
+        max_mask = (strided_x_col - out[..., np.newaxis]).reshape(shape)
+        max_mask = np.where(max_mask == 0, 1.0, 0)
 
-        out = np.max(x_cols, axis=1)
         out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('maxpool2d')
-                if x.eval_grad:
+                if x.requires_grad:
 
-                    for r in range(out.shape[1]):
-                        for c in range(out.shape[2]):
+                    pad_x_grad = np.zeros(pad_x.shape)
+
+                    for r in range(out.shape[2]):
+                        for c in range(out.shape[3]):
 
                             # multiplying each 'mask' like volume(single 1s in the volumes along all batches) with the gradient
                             # at region whose value was caused by the mask region's input
-                            pad_x[:, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1], :] *= out.grad[:, r, c, :].reshape(F, 1, 1, N)
+                            pad_x_grad[:, :, r*s[0]:r*s[0] + k[0], c*s[1]:c*s[1] + k[1]] += max_mask[:, :, r, c] * out.grad[:, :, r, c].reshape(N, F, 1, 1)
 
                     # cutting the padded portion from the input gradient
                     # and updating the gradient of actual input(non-padded) - unpadding and updating
-                    x.grad += pad_x[:, p[0]:pad_x.shape[1]-p[0], p[1]:pad_x.shape[2]-p[1], :]
+                    x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0], p[1]:pad_x_grad.shape[3]-p[1]]
 
                 # return (x.grad)
 
@@ -666,7 +667,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('dropout')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += out.grad*dropout_mask # only activated units get gradients
 
                 # return x.grad
@@ -684,7 +685,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('relu')
-                if z.eval_grad:
+                if z.requires_grad:
                     z.grad += out.grad.copy()
                     z.grad[z.data < 0] = 0
 
@@ -702,7 +703,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('lrelu')
-                if z.eval_grad:
+                if z.requires_grad:
                     z.grad += out.grad.copy()
                     z.grad[z.data < 0] *= alpha
 
@@ -722,7 +723,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('sigmoid')
-                if z.eval_grad:
+                if z.requires_grad:
                     z.grad += np.multiply(np.multiply(out.data, 1.0 - out.data), out.grad)
 
                 # return z.grad
@@ -735,6 +736,9 @@ class ComputationalGraph:
 
     def softmax(self, z, axis=0):   # element wise softmax activations
         shape = z.shape
+        assert axis in [1, 2] and axis < len(z.shape), 'Invalid axis for softmax'
+        assert len(shape) in [2, 3], 'Invalid shape for softmax'
+        is_1d = len(shape) == 2 # if 1D, then axis=1, 0th axis is batch size
         out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         
         # Subtracting the max for numerical stability
@@ -749,30 +753,44 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('softmax')
-                if z.eval_grad:
+                if z.requires_grad:
                     # >>> Old Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
                     # >>> and doesn't handle softmx of multidimensional arrays
                     # # directly coding the end result instead of formula - easy this way
                     # z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
 
-                    # >>> New Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
-                    # >>> and handles softmx of multidimensional arrays
-                    out_i = np.expand_dims(out.data, axis=axis + 1)
-                    out_j = np.expand_dims(out.data, axis=axis)
+                    # >>> New Implementation, which implements for a general case where the gradient of the loss wrt the softmax output
+                    # >>> is not necessarily 1, and handles softmx of multidimensional arrays
+                    if is_1d:
+                        # making 1D softmax gradient calculation consistent with the 2D implementation
+                        # by reshaping the output and gradient tensors to 2D + batch size, and then reshaping the gradient back
+                        out_data = np.expand_dims(out.data, axis=len(shape))   # adding new dim at the end
+                        out_grad = np.expand_dims(out.grad, axis=len(shape))  # adding new dim at the end
+                    else:
+                        out_data = out.data
+                        out_grad = out.grad
+                    out_i = np.expand_dims(out_data, axis=axis + 1)
+                    out_j = np.expand_dims(out_data, axis=axis)
 
                     jacobian = -out_i * out_j  # For i != j
                     ii_indices = np.arange(out.data.shape[axis])
-                    if axis == 0:
-                        jacobian[ii_indices, ii_indices, :, :] = out.data * (1 - out.data)  # Adding the diagonal part
-                    elif axis == 1:
-                        jacobian[:, ii_indices, ii_indices, :] = out.data * (1 - out.data)
+                    # Adding the diagonal part of the jacobian
+                    if axis == 1:
+                        jacobian[:, ii_indices, ii_indices, :] = out_data * (1 - out_data)
                     elif axis == 2:
-                        jacobian[:, :, ii_indices, ii_indices] = out.data * (1 - out.data)
+                        jacobian[:, :, ii_indices, ii_indices] = out_data * (1 - out_data)
 
                     # Now, apply this jacobian to grad_out
-                    grad_out_expanded = np.expand_dims(out.grad, axis=axis + 1)  # Expanding dims for correct broadcasting
+                    grad_out_expanded = np.expand_dims(out_grad, axis=axis + 1)  # Expanding dims for correct broadcasting
                     jacobian_prod = jacobian * grad_out_expanded
-                    z.grad += np.sum(jacobian_prod, axis=axis)  # Sum over the softmax dimension
+                    z_grad = np.sum(jacobian_prod, axis=axis)  # Sum over the softmax dimension
+
+                    if is_1d:
+                        # the last axis is the one we added, it is of size 1, so we remove it
+                        z.grad += z_grad.squeeze(axis=len(shape))
+                    else:
+                        # case where the input is 2D input
+                        z.grad += z_grad
 
                 # return z.grad
 
@@ -788,7 +806,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('tanh')
-                if z.eval_grad:
+                if z.requires_grad:
                     z.grad += np.multiply(1 - np.multiply(out.data, out.data), out.grad)
 
                 # return z.grad
@@ -800,7 +818,7 @@ class ComputationalGraph:
         return out
 
     # data manipulation/view functions
-    def split(self, W, sections=1, axis=0):
+    def split(self, W, sections=1, axis=-1):
         outs = np.split(W.data, sections, axis=axis)
         outs_list = list()
         for e in outs:
@@ -811,7 +829,7 @@ class ComputationalGraph:
             def backward():
                 # print('split')
                 outs_grads = [o.grad for o in outs_list]
-                if W.eval_grad:
+                if W.requires_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
 
                 # return W.grad
@@ -829,7 +847,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 # print('index')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad[key] += out.grad
 
                 # return x.grad
@@ -840,18 +858,18 @@ class ComputationalGraph:
 
         return out
 
-    def cat(self, inputs_list, axis=0):
-        indices = [input.shape[axis] for input in inputs_list]
-        indices = [sum(indices[:_+1]) for _ in range(len(indices))]
+    def cat(self, inputs_list, axis=-1):
+        indices = [e.shape[axis] for e in inputs_list]
+        indices = [sum(indices[:i + 1]) for i in range(len(indices))]
         out = ai.parameter.Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('cat')
                 input_grads = np.split(out.grad, indices, axis=axis)
-                for _ in range(len(inputs_list)):
-                    if inputs_list[_].eval_grad:
-                        inputs_list[_].grad += input_grads[_]
+                for e in range(len(inputs_list)):
+                    if inputs_list[e].requires_grad:
+                        inputs_list[e].grad += input_grads[e]
 
                 # return *[input.grad for input in inputs_list]
 
@@ -861,14 +879,18 @@ class ComputationalGraph:
 
         return out
 
-    def T(self, x):     # transpose
-        out = ai.parameter.Parameter(data=x.data.T, graph=self)
+    def transpose(self, x, dim0=None, dim1=None):     # transpose
+        axes = tuple(dim0, dim1)
+        out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
 
         if self.grad_mode:
             def backward():
                 # print('T')
-                if x.eval_grad:
-                    x.grad += out.grad.T
+                if x.requires_grad:
+                    reverse_axes = None
+                    if axes:
+                        reverse_axes = axes[::-1]
+                    x.grad += np.transpose(out.grad, axes=reverse_axes)
 
                 # return x.grad
 
@@ -880,19 +902,19 @@ class ComputationalGraph:
 
     def reshape(self, x, new_shape=None):
         old_shape = x.shape
-        batch_size = old_shape[-1]
+        batch_size = old_shape[0]   # batch size always at dimesion 0
 
         if new_shape == None:   # flatten
-            new_shape = x.data.reshape(-1, batch_size).shape
+            new_shape = x.data.reshape(batch_size, -1).shape
         else:
-            new_shape = (*new_shape, batch_size)
+            new_shape = (batch_size, *new_shape)
         out = ai.parameter.Parameter(new_shape, init_zeros=True, graph=self)
         out.data = x.data.reshape(new_shape)
 
         if self.grad_mode:
             def backward():
                 # print('reshape')
-                if x.eval_grad:
+                if x.requires_grad:
                     x.grad += out.grad.reshape(old_shape)
 
                 # return x.grad

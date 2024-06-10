@@ -72,7 +72,7 @@ class Module(object):
     def get_module_layers(self):   # returns a dictionary of parametrized layers in the module
 
         attributes = self.__dict__
-        layers = ['Linear', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'Maxpool2d', 'Dropout']
+        layers = ['Linear', 'Conv1d', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'Maxpool2d', 'Dropout']
 
         module_layers = dict()
         for name in attributes:
@@ -88,7 +88,7 @@ class Module(object):
         module_params = dict()
         for name in attributes:
             if attributes[name].__class__.__name__ in ['Parameter']:
-                if attributes[name].eval_grad:
+                if attributes[name].requires_grad:
                     module_params[name] = attributes[name]
 
         return module_params
