@@ -40,22 +40,25 @@ class BatchNorm2D(Module):
 
             normalizing_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph)
             normalizing_size.data.fill(float(x.data.size // self.num_channels))
+            eps = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph)
+            eps.data.fill(self.eps)
 
             # calculate mean and variance
-            mean = self.graph.divide(self.graph.sum(x, axis=(0, 2, 3)), normalizing_size, eps=self.eps)
+            mean = self.graph.divide(self.graph.sum(x, axis=(0, 2, 3)), normalizing_size)
             centered = self.graph.subtract(x, mean, axis=(0, 2, 3))
-            var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=(0, 2, 3)), normalizing_size, eps=self.eps)
+            var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=(0, 2, 3)), normalizing_size)
 
             self.m.data = (1 - self.momentum) * self.m.data + self.momentum * mean.data
             self.v.data = (1 - self.momentum) * self.v.data + self.momentum * var.data
 
             # normalize the data to zero mean and unit variance
-            normalized = self.graph.multiply(centered, self.graph.power(var, -0.5), axis=self.axis)
+            rstd = self.graph.power(self.graph.add(var, eps), -0.5)
+            normalized = self.graph.multiply(centered, rstd, axis=(0, 2, 3))
 
-        else:   # testing
+        else:   # testing/inference
 
             centered = np.subtract(x.data, self.m.data)
-            normalized = np.multiply(centered, np.power(self.v.data + 1e-6, -0.5))
+            normalized = np.multiply(centered, np.power(self.v.data + self.eps, -0.5))
             normalized = Parameter(data=normalized, requires_grad=False, graph=self.graph)
 
         # scale and shift
