@@ -36,11 +36,11 @@ class Loss:
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[0]))
 
         # L = (y_out - y_true)^2
-        l = self.graph.sum(self.graph.multiply(self.graph.subtract(y_out, y_true), self.graph.subtract(y_out, y_true)))
+        l = self.graph.sum(self.graph.power(self.graph.subtract(y_out, y_true), 2))
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = self.graph.divide(l, batch_size)
 
@@ -53,10 +53,10 @@ class Loss:
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[0]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
+        neg_one = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
@@ -73,10 +73,10 @@ class Loss:
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[0]))
 
-        neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
+        neg_one = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph)
         neg_one.data.fill(-1.0)  # just a -1 to make the l.grad look same in all the loss defs (dl/dl = 1)
 
         one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
@@ -105,10 +105,10 @@ class Loss:
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
 
-        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_true.shape[0]))
 
-        two = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
+        two = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph)
         two.data.fill(2.0)   # just a 2 :p
 
         neg_one = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph)
@@ -131,7 +131,7 @@ class Loss:
 
     def test_loss(self, y_out):
 
-        batch_size = Parameter((1, 1), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
+        batch_size = Parameter((1,), init_zeros=True, requires_grad=False, graph=self.graph) # mini-batch size
         batch_size.data.fill(float(y_out.shape[0]))
 
         # a test loss score function that measures the sum of elements of each output vector as the loss of that sample
