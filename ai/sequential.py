@@ -25,8 +25,8 @@ class LSTM(Module):
         return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
             self.input_size, self.hidden_size, self.bias))
 
-    def __call__(self, x, hidden):  # easy callable
-        return self.forward(x, hidden)
+    def __call__(self, *args, **kwargs):  # easy callable
+        return self.forward(*args, **kwargs)
 
     def forward(self, x, hidden):
 

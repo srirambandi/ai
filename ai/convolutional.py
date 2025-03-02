@@ -36,8 +36,8 @@ class Conv1d(Module):
         return('Conv1d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
-    def __call__(self, x):  # easy callable
-        return self.forward(x)
+    def __call__(self, *args, **kwargs):  # easy callable
+        return self.forward(*args, **kwargs)
 
     def forward(self, x):
 
@@ -84,8 +84,8 @@ class Conv2d(Module):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
-    def __call__(self, x):  # easy callable
-        return self.forward(x)
+    def __call__(self, *args, **kwargs):  # easy callable
+        return self.forward(*args, **kwargs)
 
     def forward(self, x):
 
@@ -135,8 +135,8 @@ class ConvTranspose2d(Module):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, output_padding={}, bias={})'.format(
             self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.output_padding, self.bias))
 
-    def __call__(self, x):  # easy callable
-        return self.forward(x)
+    def __call__(self, *args, **kwargs):  # easy callable
+        return self.forward(*args, **kwargs)
 
     def forward(self, x):
 
