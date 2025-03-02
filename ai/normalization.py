@@ -28,9 +28,6 @@ class BatchNorm2D(Module):
         return('BatchNorm2D({}, eps={}, momentum={})'.format(
             self.num_channels, self.eps, self.momentum))
 
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
-
     def forward(self, x):
 
         if not isinstance(x, Parameter):
@@ -91,9 +88,6 @@ class LayerNorm(Module):
     def __repr__(self):
         return('LayerNorm(normalized_shape={}, eps={}, bias={})'.format(
             self.normalized_shape, self.eps, self.bias))
-    
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
     
     def forward(self, x):
         

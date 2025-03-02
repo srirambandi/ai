@@ -27,9 +27,6 @@ class Maxpool2d(Module):
         return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
             self.kernel_size, self.stride, self.padding))
 
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
-
     def forward(self, x):
 
         if not isinstance(x, Parameter):

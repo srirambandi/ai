@@ -1,10 +1,11 @@
 import numpy as np
+from abc import ABC, abstractmethod
 from ai.parameter import Parameter
 from ai.graph import ComputationalGraph, G
 
 
 # generic module class to add useful features like save/load model from files, get parameters etc.
-class Module(object):
+class Module(ABC):
     def __init__(self):
         pass
 
@@ -17,6 +18,13 @@ class Module(object):
         module_schema += ')'
 
         return module_schema
+
+    def __call__(self, *args, **kwargs):  # easy callable
+        return self.forward(*args, **kwargs)
+
+    @abstractmethod
+    def forward(self, *args, **kwards):
+        raise NotImplementedError
 
     def save(self, file=None):  # model.save() - saves the state of the network
         print('saving model...')

@@ -14,9 +14,6 @@ class Dropout(Module):
     def __repr__(self):
         return('Dropout(p={})'.format(self.p))
 
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
-
     def forward(self, x):
 
         if not isinstance(x, Parameter):

@@ -25,9 +25,6 @@ class Linear(Module):
         return('Linear(input_features={}, output_features={}, bias={})'.format(
             self.input_features, self.output_features, self.bias))
 
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
-
     def forward(self, x):
         # making the input compatible with graph operations
         if not isinstance(x, Parameter):

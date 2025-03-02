@@ -36,9 +36,6 @@ class Conv1d(Module):
         return('Conv1d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.bias))
 
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
-
     def forward(self, x):
 
         if not isinstance(x, Parameter):
@@ -83,9 +80,6 @@ class Conv2d(Module):
     def __repr__(self):
         return('Conv2d({}, {}, kernel_size={}, stride={}, padding={}, bias={})'.format(
             self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.bias))
-
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
 
     def forward(self, x):
 
@@ -134,9 +128,6 @@ class ConvTranspose2d(Module):
     def __repr__(self):
         return('ConvTranspose2d({}, {}, kernel_size={}, stride={}, padding={}, output_padding={}, bias={})'.format(
             self.input_channels, self.output_channels, self.kernel_size, self.stride, self.padding, self.output_padding, self.bias))
-
-    def __call__(self, *args, **kwargs):  # easy callable
-        return self.forward(*args, **kwargs)
 
     def forward(self, x):
 
