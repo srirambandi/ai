@@ -13,9 +13,9 @@ from ai.parameter import Parameter
 from ai.graph import ComputationalGraph, G
 
 from ai.linear import Linear
-from ai.convolutional import Conv2d, ConvTranspose2d
+from ai.convolutional import Conv1d, Conv2d, ConvTranspose2d
 from ai.sequential import RNN, LSTM
-from ai.normalization import BatchNorm
+from ai.normalization import BatchNorm2d, LayerNorm
 from ai.pooling import Maxpool2d
 from ai.regularization import Dropout
 
