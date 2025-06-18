@@ -108,8 +108,8 @@ class ConvTranspose2d(Module):
             stride = (stride, stride)
         if not isinstance(padding, tuple):
             padding = (padding, padding)
-        if not isinstance(a, tuple):
-            a = (a, a)
+        if not isinstance(output_padding, tuple):
+            output_padding = (output_padding, output_padding)
 
         self.kernel_size = kernel_size
         self.filter_size = (self.out_channels, *(self.kernel_size))
