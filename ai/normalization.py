@@ -5,7 +5,7 @@ from ai.module import Module
 
 
 # batch normalization layer
-class BatchNorm2D(Module):
+class BatchNorm2d(Module):
     def __init__(self, num_channels, eps=1e-5, momentum=0.1, graph=G):
         super(BatchNorm2D, self).__init__()
         self.num_channels = num_channels  # should be equal to the number of channels in the input
