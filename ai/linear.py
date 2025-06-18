@@ -16,14 +16,13 @@ class Linear(Module):
         self.init_params()
 
     def init_params(self):
-        root_k = np.sqrt(1. / self.input_features)
+        root_k = np.sqrt(1. / self.in_features)
         self.W = Parameter((self.out_features, self.in_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
         if self.bias:
             self.b = Parameter((1, self.out_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
     def __repr__(self):
-        return('Linear(input_features={}, output_features={}, bias={})'.format(
-            self.input_features, self.output_features, self.bias))
+        return(f'Linear(in_features={self.in_features}\n, out_features={self.out_features}\n, bias={self.bias})')
 
     def forward(self, x):
         # making the input compatible with graph operations
