@@ -37,8 +37,7 @@ class Optimizer:
                     self.v.append(np.zeros(parameter.shape))
 
     def __repr__(self):
-        return('Optimizer(optim_fn={}, lr={}, momentum={})'.format(
-            self.optim_fn, self.lr, self.momentum))
+        return(f'Optimizer(optim_fn={self.optim_fn}, lr={self.lr}, momentum={self.momentum})')
 
     # a very important step in learning time
     def zero_grad(self):

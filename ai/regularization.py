@@ -12,7 +12,7 @@ class Dropout(Module):
         self.graph = graph
 
     def __repr__(self):
-        return('Dropout(p={})'.format(self.p))
+        return(f'Dropout(p={self.p})')
 
     def forward(self, x):
 

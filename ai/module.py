@@ -80,7 +80,7 @@ class Module(ABC):
     def get_module_layers(self):   # returns a dictionary of parametrized layers in the module
 
         attributes = self.__dict__
-        layers = ['Linear', 'Conv1d', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm', 'LayerNorm' 'Maxpool2d', 'Dropout']
+        layers = ['Linear', 'Conv1d', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm2d', 'LayerNorm' 'Maxpool2d', 'Dropout']
 
         module_layers = dict()
         for name in attributes:

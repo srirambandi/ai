@@ -29,7 +29,7 @@ class Loss:
           raise 'No such loss function'
 
     def __repr__(self):
-        return('Loss(loss_fn={})'.format(self.loss_fn))
+        return(f'Loss(loss_fn={self.loss_fn})')
 
     def mse_loss(self, y_out, y_true):
 

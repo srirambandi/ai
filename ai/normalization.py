@@ -7,7 +7,7 @@ from ai.module import Module
 # batch normalization layer
 class BatchNorm2d(Module):
     def __init__(self, num_channels, eps=1e-5, momentum=0.1, graph=G):
-        super(BatchNorm2D, self).__init__()
+        super(BatchNorm2d, self).__init__()
         self.num_channels = num_channels  # should be equal to the number of channels in the input
         self.eps = eps    # small value to avoid division by zero
         self.momentum = momentum
@@ -25,8 +25,7 @@ class BatchNorm2d(Module):
         self.v = Parameter(shape, init_ones=True, requires_grad=False, graph=self.graph)      # moving variance - not trainable
 
     def __repr__(self):
-        return('BatchNorm2D({}, eps={}, momentum={})'.format(
-            self.num_channels, self.eps, self.momentum))
+        return(f'BatchNorm2d(num_channels={self.num_channels}, eps={self.eps}, momentum={self.momentum})')
 
     def forward(self, x):
 
@@ -67,14 +66,14 @@ class BatchNorm2d(Module):
 
 
 class LayerNorm(Module):
-    def __init__(self, normalized_shape, eps=1e-5, bias=True, graph=G):
+    def __init__(self, normalized_shape, eps=1e-5, graph=G):
         super(LayerNorm, self).__init__()
 
         if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
+
         self.normalized_shape = normalized_shape    # shape in the input from last dim over which to normalize
         self.eps = eps
-        self.bias = bias
         self.graph = graph
         self.normalized_axes = [-1 * i for i in range(1, len(normalized_shape) + 1)][::-1]  # axis to normalize over
         self.init_params()
@@ -86,8 +85,7 @@ class LayerNorm(Module):
         self.beta = Parameter(self.normalized_shape, init_zeros=True, graph=self.graph)
 
     def __repr__(self):
-        return('LayerNorm(normalized_shape={}, eps={}, bias={})'.format(
-            self.normalized_shape, self.eps, self.bias))
+        return(f'LayerNorm(normalized_shape={self.normalized_shape}, eps={self.eps})')
     
     def forward(self, x):
         

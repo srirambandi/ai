@@ -24,8 +24,7 @@ class Maxpool2d(Module):
         self.graph = graph
 
     def __repr__(self):
-        return('Maxpool2d(kernel_size={}, stride={}, padding={})'.format(
-            self.kernel_size, self.stride, self.padding))
+        return(f'Maxpool2d(kernel_size={self.kernel_size}, stride={ self.stride}, padding={self.padding})')
 
     def forward(self, x):
 

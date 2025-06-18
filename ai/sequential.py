@@ -22,8 +22,7 @@ class LSTM(Module):
         self.b_hh = Parameter((1, 4*self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
 
     def __repr__(self):
-        return('LSTM(input_size={}, hidden_size={}, bias={})'.format(
-            self.input_size, self.hidden_size, self.bias))
+        return(f'LSTM(input_size={self.input_size}, hidden_size={self.hidden_size}, bias={self.bias})')
 
     def forward(self, x, hidden):
 
@@ -75,8 +74,7 @@ class RNN(Module):
         self.b_hh = Parameter((1, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __repr__(self):
-        return('RNN(input_size={}, hidden_size={}, bias={})'.format(
-            self.input_size, self.hidden_size, self.bias))
+        return(f'RNN(input_size={self.input_size}, hidden_size={self.hidden_size}, bias={self.bias})')
 
     def forward(self, x, hidden):
 

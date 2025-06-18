@@ -22,7 +22,7 @@ class Linear(Module):
             self.b = Parameter((1, self.out_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
 
     def __repr__(self):
-        return(f'Linear(in_features={self.in_features}\n, out_features={self.out_features}\n, bias={self.bias})')
+        return(f'Linear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias})')
 
     def forward(self, x):
         # making the input compatible with graph operations
