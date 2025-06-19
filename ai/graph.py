@@ -889,7 +889,7 @@ class ComputationalGraph:
             else:
                 raise ValueError('dim0 and dim1 must be specified for transpose operation on tensors with more than 2 dimensions')
 
-        axes = tuple([dim0, dim1])
+        axes = tuple([dim0, dim1][::-1])
         out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
 
         if self.grad_mode:
