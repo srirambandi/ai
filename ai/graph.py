@@ -880,6 +880,15 @@ class ComputationalGraph:
         return out
 
     def transpose(self, x, dim0=None, dim1=None):     # transpose
+
+        if len(x.shape) == 1:
+                raise ValueError('no transpose operation supported for 1D tensors')
+        if dim0 is None or dim1 is None:
+            if len(x.shape) == 2:
+                dim0, dim1 = 0, 1
+            else:
+                raise ValueError('dim0 and dim1 must be specified for transpose operation on tensors with more than 2 dimensions')
+
         axes = tuple([dim0, dim1])
         out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
 
@@ -887,14 +896,12 @@ class ComputationalGraph:
             def backward():
                 # print('T')
                 if x.requires_grad:
-                    reverse_axes = None
-                    if axes:
-                        reverse_axes = axes[::-1]
+                    reverse_axes = axes[::-1]
                     x.grad += np.transpose(out.grad, axes=reverse_axes)
 
                 # return x.grad
 
-            node = {'func': 'transpose', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = {'func': 'x.T', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
