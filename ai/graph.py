@@ -880,7 +880,7 @@ class ComputationalGraph:
         return out
 
     def transpose(self, x, dim0=None, dim1=None):     # transpose
-        axes = tuple(dim0, dim1)
+        axes = tuple([dim0, dim1])
         out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
 
         if self.grad_mode:
