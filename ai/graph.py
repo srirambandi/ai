@@ -341,7 +341,7 @@ class ComputationalGraph:
 
         # get strided view of padded input by picking appropriate strides
         shape = (N, C, *o, *k)
-        strides = pad_x[:2].strides + (pad_x.strides[2]*s[0], pad_x.strides[3]*s[1]) + pad_x.strides[2:]
+        strides = pad_x.strides[:2] + (pad_x.strides[2]*s[0], pad_x.strides[3]*s[1]) + pad_x.strides[2:]
         strided_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
         out = np.tensordot(strided_x, K.data, axes=([1, 4, 5], [1, 2, 3]))
         out = np.transpose(out, (0, 3, 1, 2))
