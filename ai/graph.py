@@ -464,7 +464,7 @@ class ComputationalGraph:
 
         N = x.shape[0]      # Batch size
         F = x.shape[1]      # number of input filters
-        i = x.shape[1:-1]   # input filter shape
+        i = x.shape[2:]     # input filter shape
         C = K.shape[1]      # number of output channels
         k = K.shape[2:]     # kernel filter shape
 
@@ -502,7 +502,7 @@ class ComputationalGraph:
 
                 if K.requires_grad:
                     # (N, C, i, i, k, k) x (N, F, i, i) -> (C, k, k, F)
-                    grad_k += np.tensordot(strided_out_grad, x.data, axes=([0, 2, 3], [0, 2, 3]))
+                    grad_k = np.tensordot(strided_out_grad, x.data, axes=([0, 2, 3], [0, 2, 3]))
                     # (C, k, k, F) -> (F, C, k, k)
                     K.grad += np.transpose(grad_k, (3, 0, 1, 2))
 
@@ -896,8 +896,7 @@ class ComputationalGraph:
             def backward():
                 # print('T')
                 if x.requires_grad:
-                    reverse_axes = axes[::-1]
-                    x.grad += np.transpose(out.grad, axes=reverse_axes)
+                    x.grad += np.transpose(out.grad, axes=axes)
 
                 # return x.grad
 
