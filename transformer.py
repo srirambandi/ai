@@ -8,8 +8,8 @@ MIT License
 """
 
 import math
-
-from ai.graph import G
+import numpy as np
+from dataclasses import dataclass
 from ai.parameter import Parameter
 from ai.module import Module
 from ai.linear import Linear
@@ -21,38 +21,44 @@ class SelfAttention(Module):
     this is a causal self attention, because of the type of masking in forward():
     every token only attends to the tokens before it.
     """
-    def __init__(self, d_model, bias=True):
+    def __init__(self, config, bias=True):
         super(SelfAttention, self).__init__()
-        self.Q_proj = Linear(d_model, d_model, bias=bias)
-        self.K_proj = Linear(d_model, d_model, bias=bias)
-        self.V_proj = Linear(d_model, d_model, bias=bias)
-        self.A_proj = Linear(d_model, d_model, bias=bias)
+        self.d_model = config.d_model
+        self.Q_proj = Linear(self.d_model, self.d_model, bias=bias)
+        self.K_proj = Linear(self.d_model, self.d_model, bias=bias)
+        self.V_proj = Linear(self.d_model, self.d_model, bias=bias)
+        self.A_proj = Linear(self.d_model, self.d_model, bias=bias)
+        mask = np.ones((1, config.context_length, config.context_length))
+        mask = np.tril(mask)
+        mask = np.where(mask == 0, float("-inf"), mask)
+        self.causal_mask = Parameter(data=mask, requires_grad=False)
 
     def forward(self, x):
-        Q = self.Q_proj(x)
-        K = self.K_proj(x)
-        V = self.V_proj(x)
-        d_k = math.sqrt(K.shape[-1])    # which is d_model generally
-        dot_product = Q @ K.transpose(axis0=1, axis1=2)
-        scaled_dot_product = dot_product / d_k
-        # TODO: masking step here.
-        attention_probs = self.graph.softmax(scaled_dot_product, axis=-1)
-        attention = attention_probs @ V
+        Q = self.Q_proj(x)  # (B, L, D)
+        K = self.K_proj(x)  # (B, L, D)
+        V = self.V_proj(x)  # (B, L, D)
+        d_k = math.sqrt(K.shape[-1])    # which is d_model(D) generally
+        dot_product = Q @ K.transpose(axis0=1, axis1=2) # (B, L, L)
+        scaled_dot_prod = dot_product / d_k
+        masked_dot_prod = self.graph.multiply(scaled_dot_prod, self.causal_mask)
+        attention_probs = self.graph.softmax(masked_dot_prod, axis=-1)   # (B, L, L)
+        attention = attention_probs @ V     # (B, L, D)
         output = self.A_proj(attention)
 
         return output
 
 
 class MultiHeadAttention(Module):
-    def __init__(self, num_heads, d_model, bias=True):
+    def __init__(self, config, bias=True):
         super(MultiHeadAttention, self).__init__()
-        self.num_heads = num_heads
-        for i in range(num_heads):
-            setattr(self, f"attn_{i}", SelfAttention(d_model, bias=bias))
+        self.num_heads = config.num_heads
+        for i in range(config.num_heads):
+            setattr(self, f"attn_{i}", SelfAttention(config, bias=bias))
         
     def forward(self, x):
         xs = self.graph.split(x, sections=self.num_heads, axis=-1)
         ys = []
+        # TODO: can be made efficient with vectorization or async calls
         for i in range(self.num_heads):
             a = getattr(self, f"attn_{i}")(xs[i])
             ys.append(a)
@@ -73,7 +79,27 @@ class TransformerLayer(Module):
         pass
 
 
+@dataclass
+class TransformerConfig:
+    context_length: int = 1024
+    vocab_size: int = 50304
+    num_layer: int = 12
+    num_head: int = 12
+    d_model: int = 768
+    bias: bool = False
+
+
 class Transformer(Module):
-    def __init__(self):
+    def __init__(self, config):
         super(Transformer, self).__init__()
-        pass
+        self.config = config
+
+
+config = TransformerConfig(
+    context_length = ...,
+    vocab_size = ...,
+    num_layer = ...,
+    num_head = ...,
+    d_model = ...,
+    bias = ...,
+)
