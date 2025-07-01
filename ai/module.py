@@ -78,26 +78,19 @@ class Module(ABC):
         print('Successfully loaded model from {}'.format(file))
 
     def get_module_layers(self):   # returns a dictionary of parametrized layers in the module
-
-        attributes = self.__dict__
-        layers = ['Linear', 'Conv1d', 'Conv2d', 'ConvTranspose2d', 'LSTM', 'RNN', 'BatchNorm2d', 'LayerNorm' 'Maxpool2d', 'Dropout']
-
         module_layers = dict()
-        for name in attributes:
-            if attributes[name].__class__.__name__ in layers:
-                module_layers[name] = attributes[name]
+        for name, attr in self.__dict__.items():
+            if isinstance(attr, Module):
+                module_layers[name] = attr
 
         return module_layers
 
     def get_module_params(self):    # returns a dictionary of parameters in the module
-
-        attributes = self.__dict__
-
         module_params = dict()
-        for name in attributes:
-            if attributes[name].__class__.__name__ in ['Parameter']:
-                if attributes[name].requires_grad:
-                    module_params[name] = attributes[name]
+        for name, attr in self.__dict__.items():
+            if isinstance(attr, Parameter):
+                if attr.requires_grad:
+                    module_params[name] = attr
 
         return module_params
 
