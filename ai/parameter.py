@@ -112,6 +112,10 @@ class Parameter:
     def __add__(self, other):
 
         if not isinstance(other, Parameter):
+            if isinstance(other, int) or isinstance(other, float):
+                constant = np.empty(self.shape)
+                constant.fill(float(other))
+                other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.add() with axis argument.')
@@ -121,6 +125,10 @@ class Parameter:
     def __sub__(self, other):
 
         if not isinstance(other, Parameter):
+            if isinstance(other, int) or isinstance(other, float):
+                constant = np.empty(self.shape)
+                constant.fill(float(other))
+                other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.subtract() with axis argument.')
@@ -130,6 +138,10 @@ class Parameter:
     def __mul__(self, other):
 
         if not isinstance(other, Parameter):
+            if isinstance(other, int) or isinstance(other, float):
+                constant = np.empty(self.shape)
+                constant.fill(float(other))
+                other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.multiply() with axis argument.')
@@ -146,6 +158,10 @@ class Parameter:
     def __truediv__(self, other):
 
         if not isinstance(other, Parameter):
+            if isinstance(other, int) or isinstance(other, float):
+                constant = np.empty(self.shape)
+                constant.fill(float(other))
+                other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
         assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.divide() with axis argument.')
