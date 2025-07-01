@@ -170,6 +170,12 @@ class Parameter:
 
     def __pow__(self, other):
         return self.graph.power(self, other)
+    
+    def transpose(self, axis0=None, axis1=None):
+        return self.graph.transpose(self, axis0=axis0, axis1=axis1)
+    
+    def reshape(self, new_shape=None):
+        return self.graph.reshape(self, new_shape=new_shape)
 
     # transpose
     @property

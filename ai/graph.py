@@ -736,6 +736,8 @@ class ComputationalGraph:
 
     def softmax(self, z, axis=0):   # element wise softmax activations
         shape = z.shape
+        if axis < 0:
+            axis = len(shape) + axis
         assert axis in [1, 2] and axis < len(z.shape), 'Invalid axis for softmax'
         assert len(shape) in [2, 3], 'Invalid shape for softmax'
         is_1d = len(shape) == 2 # if 1D, then axis=1, 0th axis is batch size
@@ -879,19 +881,19 @@ class ComputationalGraph:
 
         return out
 
-    def transpose(self, x, dim0=None, dim1=None):     # transpose
+    def transpose(self, x, axis0=None, axis1=None):     # transpose
 
         if len(x.shape) == 1:
                 raise ValueError('no transpose operation supported for 1D tensors')
-        if dim0 is None or dim1 is None:
+        if axis0 is None or axis1 is None:
             if len(x.shape) == 2:
-                dim0, dim1 = 0, 1
+                axis0, axis1 = 0, 1
             else:
-                raise ValueError('dim0 and dim1 must be specified for transpose operation on tensors with more than 2 dimensions')
+                raise ValueError('axis0 and axis1 must be specified for transpose operation on tensors with more than 2 dimensions')
 
         axes = list(range(len(x.shape)))
-        axes[dim0] = dim1
-        axes[dim1] = dim0
+        axes[axis0] = axis1
+        axes[axis1] = axis0
         out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
 
         if self.grad_mode:
