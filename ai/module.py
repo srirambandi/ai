@@ -1,13 +1,13 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from ai.parameter import Parameter
-from ai.graph import ComputationalGraph, G
+from ai.graph import G
 
 
 # generic module class to add useful features like save/load model from files, get parameters etc.
 class Module(ABC):
-    def __init__(self):
-        pass
+    def __init__(self, graph=G):
+        self.graph = graph
 
     def __repr__(self):
         module_schema = str(self.__class__.__name__) + '(\n'

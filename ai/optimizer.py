@@ -1,6 +1,5 @@
 import numpy as np
-from ai.parameter import Parameter
-from ai.graph import ComputationalGraph, G
+from ai.graph import G
 
 
 # Optimizers to take that drunken step down the hill
