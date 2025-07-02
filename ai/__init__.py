@@ -18,6 +18,7 @@ from ai.sequential import RNN, LSTM
 from ai.normalization import BatchNorm2d, LayerNorm
 from ai.pooling import Maxpool2d
 from ai.regularization import Dropout
+from ai.embedding import Embedding
 
 from ai.loss import Loss
 from ai.optimizer import Optimizer
