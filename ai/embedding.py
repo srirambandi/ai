@@ -24,15 +24,19 @@ class Embedding(Module):
         # making the input compatible with graph operations
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
-        
-        batch_embeddings = []
-        for b in range(len(x.shape[0])):
-            embeddings = []
-            for l in range(len(x.shape[1])):
-                embeddings.append(self.embedding_table[x[b, l], :])
-            embeddings = self.graph.cat(embeddings, axis=0)
-            embeddings = embeddings.reshape(1, *embeddings.shape)
-            batch_embeddings.append(embeddings)
-        output = self.graph.cat(batch_embeddings, axis=0)
 
-        return output
+        # let's only deal with inputs that don't need training as is required in most cases
+        assert not x.requires_grad, "Embedding only takes in Parameter with no training requirement."
+
+        B, L = x.shape
+        mask = np.zeros((B, L, self.num_embeddings, self.embedding_dim))
+        B_idx = np.arange(B)[:, None]
+        L_idx = np.arange(L)
+        mask[B_idx, L_idx, x, :] = 1.0
+
+        mask = Parameter(data=mask, requires_grad=False)
+
+        emb = self.embedding_table.reshape((1, 1, self.num_embeddings, self.embedding_dim))   # (1, 1, num_embeddings, embedding_dim)
+        embeddings = (emb * mask).sum(axis=2)  # (B, L, embedding_dim)
+
+        return embeddings
