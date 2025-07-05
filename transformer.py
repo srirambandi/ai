@@ -21,13 +21,14 @@ class SelfAttention(Module):
     this is a causal self attention, because of the type of masking in forward():
     every token only attends to the tokens before it.
     """
-    def __init__(self, config, bias=True):
+    def __init__(self, config):
         super(SelfAttention, self).__init__()
         self.d_model = config.d_model
-        self.Q_proj = Linear(self.d_model, self.d_model, bias=bias)
-        self.K_proj = Linear(self.d_model, self.d_model, bias=bias)
-        self.V_proj = Linear(self.d_model, self.d_model, bias=bias)
-        self.A_proj = Linear(self.d_model, self.d_model, bias=bias)
+        self.num_head = config.num_head
+        self.Q_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
+        self.K_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
+        self.V_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
+        self.A_proj = Linear(self.d_model, self.d_model, bias=config.bias)
         mask = np.ones((1, config.context_length, config.context_length))
         mask = np.tril(mask)
         mask = np.where(mask == 0, float("-inf"), mask)
@@ -52,6 +53,7 @@ class MultiHeadAttention(Module):
     def __init__(self, config, bias=True):
         super(MultiHeadAttention, self).__init__()
         self.num_heads = config.num_heads
+        self.config = config
         for i in range(config.num_heads):
             setattr(self, f"attn_{i}", SelfAttention(config, bias=bias))
         
@@ -68,14 +70,20 @@ class MultiHeadAttention(Module):
 
 
 class FeedForwardNetwork(Module):
-    def __init__(self):
+    def __init__(self, config):
         super(FeedForwardNetwork, self).__init__()
+        self.config = config
+
+    def forward(self, x):
         pass
 
 
 class TransformerLayer(Module):
-    def __init__(self):
+    def __init__(self, config):
         super(TransformerLayer, self).__init__()
+        self.config = config
+
+    def forward(self, x):
         pass
 
 
@@ -93,6 +101,9 @@ class Transformer(Module):
     def __init__(self, config):
         super(Transformer, self).__init__()
         self.config = config
+
+    def forward(self, x):
+        pass
 
 
 config = TransformerConfig(
