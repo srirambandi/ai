@@ -73,9 +73,13 @@ class FeedForwardNetwork(Module):
     def __init__(self, config):
         super(FeedForwardNetwork, self).__init__()
         self.config = config
+        self.fc = Linear(config.d_model, 4 * config.d_model, bias=config.bias)
+        self.out_proj = Linear(4 * config.d_model, config.d_model, bias=config.bias)
 
     def forward(self, x):
-        pass
+        output = self.out_proj(self.fc(x))
+
+        return output
 
 
 class TransformerLayer(Module):
