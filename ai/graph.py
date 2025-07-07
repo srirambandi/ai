@@ -715,6 +715,31 @@ class ComputationalGraph:
 
         return out
 
+    def gelu(self, z):      # element wise GELU activations
+        # ref: https://arxiv.org/pdf/1606.08415
+        #let's do approximate gelu
+        x = z.data
+        x_square = x * x
+        x_cube = x_square * x
+        root_2_by_pi = np.sqrt(2/np.pi)
+        tanh_term = np.tanh(root_2_by_pi * (x + (0.044715 * x_cube)))
+        out = 0.5 * x * (1 + tanh_term)
+        out = ai.parameter.Parameter(data=out, graph=self)
+
+        if self.grad_mode:
+            def backward():
+                # print('gelu')
+                if z.requires_grad:
+                    z.grad += 0.5 * (1 + tanh_term + x * (1 - (tanh_term * tanh_term)) * root_2_by_pi * (1. + 3 * 0.044715 * x_square))
+
+                # return z.grad
+
+            node = {'func': 'gelu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            out.node_id = len(self.nodes)
+            self.nodes.append(node)
+
+        return out
+
     def sigmoid(self, z):   # element wise sigmoid activations
         shape = z.shape
         out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
