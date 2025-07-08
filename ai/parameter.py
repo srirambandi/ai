@@ -176,6 +176,9 @@ class Parameter:
     
     def reshape(self, new_shape=None):
         return self.graph.reshape(self, new_shape=new_shape)
+    
+    def split(self, sections=1, axis=-1):
+        return self.graph.split(self, sections=sections, axis=axis)
 
     # transpose
     @property
