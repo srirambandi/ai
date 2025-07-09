@@ -5,15 +5,6 @@ from typing import Callable, List
 from dataclasses import dataclass
 
 
-# Compuatational Node that holds the op, the op's inputs, outputs and the corresponding backprop
-@dataclass
-class ComputationalNode:
-    func: str
-    inputs: List["Parameter"]
-    outputs = List["Parameter"]
-    backprop_op: Callable
-
-
 # Computational Graph wannabe: stores the backward operation for every
 # forward operation during forward-propagation, in a breadth-fist manner
 class ComputationalGraph:
@@ -180,10 +171,10 @@ class ComputationalGraph:
         shape = (N, C, *o, *k)
         strides = pad_x.strides[:2] + (pad_x.strides[2]*s[0],) + pad_x.strides[2:]
         strided_x = np.lib.stride_tricks.as_strided(pad_x, shape=shape, strides=strides)
-        output = np.tensordot(strided_x, K.data, axes=([1, 3], [1, 2]))
-        output = np.transpose(out, (0, 2, 1))
+        out = np.tensordot(strided_x, K.data, axes=([1, 3], [1, 2]))
+        out = np.transpose(out, (0, 2, 1))
 
-        out = ai.parameter.Parameter(data=output, graph=self)
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -510,6 +501,7 @@ class ComputationalGraph:
 
         # Sum along the specified axis
         sum_e_z = np.sum(e_z, axis=axis, keepdims=True)
+        sum_e_z[sum_e_z == 0] = 1e-8 # for safe and stable division
         
         # Softmax calculation
         out.data = e_z / sum_e_z
@@ -611,13 +603,12 @@ class ComputationalGraph:
         return out
 
     def cat(self, inputs_list, axis=-1):
-        indices = [e.shape[axis] for e in inputs_list]
-        indices = [sum(indices[:i + 1]) for i in range(len(indices))]
+        split_points = np.cumsum([i.shape[axis] for i in inputs_list[:-1]])
         out = ai.parameter.Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
 
         if self.grad_mode:
             def backward():
-                input_grads = np.split(out.grad, indices, axis=axis)
+                input_grads = np.split(out.grad, split_points, axis=axis)
                 for e in range(len(inputs_list)):
                     if inputs_list[e].requires_grad:
                         inputs_list[e].grad += input_grads[e]
@@ -641,7 +632,8 @@ class ComputationalGraph:
         axes = list(range(len(x.shape)))
         axes[axis0] = axis1
         axes[axis1] = axis0
-        out = ai.parameter.Parameter(data=np.transpose(x.data, axes=axes), graph=self)
+        out = np.ascontiguousarray(np.transpose(x.data, axes=axes))
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -654,21 +646,15 @@ class ComputationalGraph:
 
         return out
 
-    def reshape(self, x, new_shape=None):
+    def reshape(self, x, shape):
         old_shape = x.shape
-        batch_size = old_shape[0]   # batch size always at dimesion 0
-
-        if new_shape == None:   # flatten
-            new_shape = x.data.reshape(batch_size, -1).shape
-        else:
-            new_shape = (batch_size, *new_shape)
-        out = ai.parameter.Parameter(new_shape, init_zeros=True, graph=self)
-        out.data = x.data.reshape(new_shape)
+        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
+        out.data = np.ascontiguousarray(x.data).reshape(shape)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += out.grad.reshape(old_shape)
+                    x.grad += np.ascontiguousarray(out.grad).reshape(old_shape)
 
             node = {'func': 'reshape', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)

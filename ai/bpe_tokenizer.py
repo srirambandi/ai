@@ -55,6 +55,7 @@ class BPETokenizer:
     def encode(self, text: str) -> List[int]:
         byte_stream = text.encode('utf-8')
         tokens = list(byte_stream)
+        # TODO: regex split the tokens for efficient tokenization
 
         while len(tokens) >= 2:
             pairs = get_pairs(tokens)

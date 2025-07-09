@@ -30,8 +30,9 @@ class Linear(Module):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         # flatten the input if it came from layers like Conv2d
-        if len(x.shape) > 2:
-            x = self.graph.reshape(x)
+        x_shape = x.shape
+        if len(x_shape) > 2:
+            x = x.reshape(x_shape[0], -1)
 
         # y = xW.T + b
         out = self.graph.dot(x, self.graph.transpose(self.W)) # matmul

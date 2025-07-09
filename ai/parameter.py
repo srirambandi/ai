@@ -101,13 +101,13 @@ class Parameter:
 
     def __getitem__(self, key):
 
-        return_scalar = all([isinstance(i, int) for i in key])
+        scalar_indexing = all([isinstance(i, int) for i in key])
+        if scalar_indexing:
+            raise Exception('Cannot do scalar indexing on the Paramter. Use x.data for scalar indexing or use slices.')
+
         new_key = tuple([slice(i, i + 1) if isinstance(i, int) else i for i in key])
 
-        if return_scalar:
-            return self.data[key]
-        else:
-            return self.graph.getitem(self, new_key)
+        return self.graph.getitem(self, new_key)
 
     def __add__(self, other):
 
@@ -170,13 +170,13 @@ class Parameter:
 
     def __pow__(self, other):
         return self.graph.power(self, other)
-    
+
     def transpose(self, axis0=None, axis1=None):
         return self.graph.transpose(self, axis0=axis0, axis1=axis1)
-    
-    def reshape(self, new_shape=None):
-        return self.graph.reshape(self, new_shape=new_shape)
-    
+
+    def reshape(self, shape):
+        return self.graph.reshape(self, shape)
+
     def split(self, sections=1, axis=-1):
         return self.graph.split(self, sections=sections, axis=axis)
 
@@ -184,8 +184,8 @@ class Parameter:
     @property
     def T(self):
 
-        data = self.data.T
-        grad = self.grad.T
+        data = np.ascontiguousarray(self.data.T)
+        grad = np.ascontiguousarray(self.grad.T)
         shape = tuple(reversed(self.shape))
 
         return Parameter(shape=shape, data=data, grad=grad, requires_grad=self.requires_grad, graph=self.graph)

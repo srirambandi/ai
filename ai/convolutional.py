@@ -34,7 +34,7 @@ class Conv1d(Module):
 
     def __repr__(self):
         return(f'Conv1d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride}\n, \tpadding={self.padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias})')
 
     def forward(self, x):
 
@@ -79,7 +79,7 @@ class Conv2d(Module):
 
     def __repr__(self):
         return(f'Conv2d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride}\n, \tpadding={self.padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias})')
 
     def forward(self, x):
 
@@ -127,7 +127,7 @@ class ConvTranspose2d(Module):
 
     def __repr__(self):
         return(f'ConvTranspose2d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride}\n, \tpadding={self.padding}, output_padding={self.output_padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, output_padding={self.output_padding}, bias={self.bias})')
 
     def forward(self, x):
 
