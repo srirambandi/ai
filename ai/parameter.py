@@ -153,7 +153,7 @@ class Parameter:
         if not isinstance(other, Parameter):
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
 
-        return self.graph.dot(self, other)
+        return self.graph.matmul(self, other)
 
     def __truediv__(self, other):
 
@@ -189,3 +189,19 @@ class Parameter:
         shape = tuple(reversed(self.shape))
 
         return Parameter(shape=shape, data=data, grad=grad, requires_grad=self.requires_grad, graph=self.graph)
+
+    # shape
+    @property
+    def shape(self):
+        assert self.shape == self.data.shape and self.data.shape == self.grad.shape, f'Something is wrong with the Parameter, \
+            shape={self.shape}, data.shape={self.data.shape}, grad.shape={self.grad.shape}'
+
+        return self.shape
+
+    # number of dimensions
+    @property
+    def ndim(self):
+        assert self.shape == self.data.shape and self.data.shape == self.grad.shape, f'Something is wrong with the Parameter, \
+            shape={self.shape}, data.shape={self.data.shape}, grad.shape={self.grad.shape}'
+
+        return self.data.ndim

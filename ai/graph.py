@@ -13,16 +13,57 @@ class ComputationalGraph:
         self.nodes = list()
 
     # functions required for deep learning models and their respective backward operations
-    def dot(self, x, y):    # dot product of vectors and matrices
-        out = ai.parameter.Parameter(data=np.dot(x.data, y.data), graph=self)
+    def dot(self, x, y):    # dot op is alias for matmul, keeping it here to support old code
+        self.matmul(x, y)
+
+    def matmul(self, x, y):    # matrix multiplication!
+        # logic to handle 1D tensors being passed here
+        x_data = x.data
+        y_data = y.data
+
+        x_1d = (x.ndim == 1)
+        y_1d = (y.ndim == 1)
+        if x_1d:
+            x_data = x.data.reshape(1, -1)
+        if y_1d:
+            y_data = y.data.reshape(-1, 1)
+
+        out = np.matmul(x_data, y_data)
+
+        if x_1d and y_1d:
+            out = out.squeeze()     # (k), (k) -> ()
+        elif x_1d:
+            out = out.squeeze(0)    # (k) (n, k) -> (n)
+        elif y_1d:
+            out = out.squeeze(-1)   # (n, k), (k) -> (n)
+
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 # useful: http://cs231n.stanford.edu/slides/2018/cs231n_2018_ds02.pdf
-                if y.requires_grad:
-                    y.grad += np.dot(x.data.T, out.grad)
+                grad = out.grad
+
+                if x_1d and y_1d:
+                    if x.requires_grad:
+                        x.grad += grad * y.data
+                    if y.requires_grad:
+                        y.grad += grad * x.data
+                    return
+
+                if grad.ndim == 1:
+                    if x_1d:
+                        grad = grad.reshape(1, -1)  # (n) -> (1, n)
+                    elif y_1d:
+                        grad = grad.reshape(-1, 1)  # (n) -> (n, 1)
+                elif grad.ndim == 0:
+                    grad = np.array([[grad]])   # () -> (1, 1)
+                
                 if x.requires_grad:
-                    x.grad += np.dot(out.grad, y.data.T)
+                    x.grad += np.matmul(grad, np.swapaxes(y_data, -1, -2)).reshape(x.shape)
+                if y.requires_grad:
+                    y.grad += np.matmul(np.swapaxes(x_data, -1, -2)).reshape(y.shape)
+                    
 
             node = {'func': '@', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
