@@ -205,3 +205,31 @@ class Parameter:
             shape={self.shape}, data.shape={self.data.shape}, grad.shape={self.grad.shape}'
 
         return self.data.ndim
+
+    @property
+    def data(self):
+        return self.data
+
+    @data.setter
+    def data(self, data):
+        assert data is not None, "can't assign None to data"
+        assert isinstance(data, np.ndarray), f"can't assign data of type {type(data)}."
+        assert data.shapa == self.shape, f"can't assign data of shape {data.shape} to Parameter of shape {self.shape}"
+
+        self.data = data
+
+    @property
+    def grad(self):
+        return self.grad
+
+    @grad.setter
+    def grad(self, grad):
+        assert grad is not None, "can't assign None to grad"
+        assert isinstance(grad, np.ndarray), f"can't assign grad of type {type(grad)}."
+        assert grad.shapa == self.shape, f"can't assign grad of shape {grad.shape} to Parameter of shape {self.shape}"
+
+        self.grad = grad
+
+    @property
+    def requires_grad(self):
+        return self.requires_grad
