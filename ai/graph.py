@@ -14,27 +14,27 @@ class ComputationalGraph:
 
     # functions required for deep learning models and their respective backward operations
     def dot(self, x, y):    # dot op is alias for matmul, keeping it here to support old code
-        self.matmul(x, y)
+        return self.matmul(x, y)
 
     def matmul(self, x, y):    # matrix multiplication!
         # logic to handle 1D tensors being passed here
         x_data = x.data
         y_data = y.data
 
-        x_1d = (x.ndim == 1)
-        y_1d = (y.ndim == 1)
-        if x_1d:
+        x_is_1d = (x.ndim == 1)
+        y_is_1d = (y.ndim == 1)
+        if x_is_1d:
             x_data = x.data.reshape(1, -1)
-        if y_1d:
+        if y_is_1d:
             y_data = y.data.reshape(-1, 1)
 
         out = np.matmul(x_data, y_data)
 
-        if x_1d and y_1d:
+        if x_is_1d and y_is_1d:
             out = out.squeeze()     # (k), (k) -> ()
-        elif x_1d:
+        elif x_is_1d:
             out = out.squeeze(0)    # (k) (n, k) -> (n)
-        elif y_1d:
+        elif y_is_1d:
             out = out.squeeze(-1)   # (n, k), (k) -> (n)
 
         out = ai.parameter.Parameter(data=out, graph=self)
@@ -44,7 +44,7 @@ class ComputationalGraph:
                 # useful: http://cs231n.stanford.edu/slides/2018/cs231n_2018_ds02.pdf
                 grad = out.grad
 
-                if x_1d and y_1d:
+                if x_is_1d and y_is_1d:
                     if x.requires_grad:
                         x.grad += grad * y.data
                     if y.requires_grad:
@@ -52,9 +52,9 @@ class ComputationalGraph:
                     return
 
                 if grad.ndim == 1:
-                    if x_1d:
+                    if x_is_1d:
                         grad = grad.reshape(1, -1)  # (n) -> (1, n)
-                    elif y_1d:
+                    elif y_is_1d:
                         grad = grad.reshape(-1, 1)  # (n) -> (n, 1)
                 elif grad.ndim == 0:
                     grad = np.array([[grad]])   # () -> (1, 1)
@@ -62,7 +62,7 @@ class ComputationalGraph:
                 if x.requires_grad:
                     x.grad += np.matmul(grad, np.swapaxes(y_data, -1, -2)).reshape(x.shape)
                 if y.requires_grad:
-                    y.grad += np.matmul(np.swapaxes(x_data, -1, -2)).reshape(y.shape)
+                    y.grad += np.matmul(np.swapaxes(x_data, -1, -2), grad).reshape(y.shape)
                     
 
             node = {'func': '@', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
@@ -71,16 +71,24 @@ class ComputationalGraph:
 
         return out
 
-    def add(self, x, y, axis=()):    # element wise addition
-        # bias should be passed in position of y
-        out = ai.parameter.Parameter(data=np.add(x.data, y.data), graph=self)
+    def add(self, x, y):    # element wise addition
+        # make x and y broadcastable
+        x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
+        x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
+        out = ai.parameter.Parameter(data=np.add(x_data, y_data), graph=self)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += out.grad
+                    x_grad = np.sum(out.grad, axis=x_1d_axes, keepdims=True)
+                    if x_ndim_orig < y_ndim_orig:
+                        x_grad = np.reshape(x_grad, x.shape)
+                    x.grad += x_grad
                 if y.requires_grad:
-                    y.grad += np.sum(out.grad, axis=axis).reshape(y.shape)   # in case of unequal sizes of inputs
+                    y_grad = np.sum(out.grad, axis=y_1d_axes, keepdims=True)
+                    if y_ndim_orig < x_ndim_orig:
+                        y_grad = np.reshape(y_grad, y.shape)
+                    y.grad += y_grad
 
             node = {'func': '+', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
@@ -88,15 +96,24 @@ class ComputationalGraph:
 
         return out
 
-    def subtract(self, x, y, axis=()):   # element wise subtraction
-        out = ai.parameter.Parameter(data=np.subtract(x.data, y.data), graph=self)
+    def subtract(self, x, y):   # element wise subtraction
+        # make x and y broadcastable
+        x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
+        x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
+        out = ai.parameter.Parameter(data=np.subtract(x_data, y_data), graph=self)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += out.grad
+                    x_grad = np.sum(out.grad, axis=x_1d_axes, keepdims=True)
+                    if x_ndim_orig < y_ndim_orig:
+                        x_grad = np.reshape(x_grad, x.shape)
+                    x.grad += x_grad
                 if y.requires_grad:
-                    y.grad -= np.sum(out.grad, axis=axis).reshape(y.shape)  # in case of unequal sizes of inputs
+                    y_grad = np.sum(out.grad, axis=y_1d_axes, keepdims=True)
+                    if y_ndim_orig < x_ndim_orig:
+                        y_grad = np.reshape(y_grad, y.shape)
+                    y.grad -= y_grad
 
             node = {'func': '-', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
@@ -104,15 +121,24 @@ class ComputationalGraph:
 
         return out
 
-    def multiply(self, x, y, axis=()):   # element wise vector multiplication
-        out = ai.parameter.Parameter(data=np.multiply(x.data, y.data), graph=self)
+    def multiply(self, x, y):   # element wise vector multiplication
+        # make x and y broadcastable
+        x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
+        x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
+        out = ai.parameter.Parameter(data=np.multiply(x_data, y_data), graph=self)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += np.multiply(out.grad, y.data)
+                    x_grad = np.sum(np.multiply(out.grad, y_data), axis=x_1d_axes, keepdims=True)
+                    if x_ndim_orig < y_ndim_orig:
+                        x_grad = np.reshape(x_grad, x.shape)
+                    x.grad += x_grad
                 if y.requires_grad:
-                    y.grad += np.sum(np.multiply(out.grad, x.data), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
+                    y_grad = np.sum(np.multiply(out.grad, x_data), axis=y_1d_axes, keepdims=True)
+                    if y_ndim_orig < x_ndim_orig:
+                        y_grad = np.reshape(y_grad, y.shape)
+                    y.grad += y_grad
 
             node = {'func': '*', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
@@ -120,15 +146,24 @@ class ComputationalGraph:
 
         return out
 
-    def divide(self, x, y, axis=(), eps=1e-8):   # element wise vector division
-        out = ai.parameter.Parameter(data= np.divide(x.data, y.data + eps), graph=self)
+    def divide(self, x, y, eps=1e-8):   # element wise vector division
+        # make x and y broadcastable
+        x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
+        x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
+        out = ai.parameter.Parameter(data= np.divide(x_data, y_data + eps), graph=self)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += np.multiply(out.grad, np.divide(1.0, y.data + eps))
+                    x_grad = np.sum(np.divide(out.grad, y_data + eps), axis=x_1d_axes, keepdims=True)
+                    if x_ndim_orig < y_ndim_orig:
+                        x_grad = np.reshape(x_grad, x.shape)
+                    x.grad += x_grad
                 if y.requires_grad:
-                    y.grad += np.sum(np.multiply(out.grad, np.multiply(out.data, np.divide(-1.0, y.data + eps))), axis=axis).reshape(y.shape) # in case of unequal sizes of inputs
+                    y_grad = np.sum(-np.multiply(out.grad, x_data / np.square(y_data + eps)), axis=y_1d_axes, keepdims=True)
+                    if y_ndim_orig < x_ndim_orig:
+                        y_grad = np.reshape(y_grad, y.shape)
+                    y.grad += y_grad
 
             node = {'func': '/', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
@@ -531,7 +566,7 @@ class ComputationalGraph:
     def softmax(self, z, axis=0):   # element wise softmax activations
         shape = z.shape
         if axis < 0:
-            axis = len(shape) + axis
+            axis += z.ndim
         assert axis in [1, 2] and axis < len(z.shape), 'Invalid axis for softmax'
         assert len(shape) in [2, 3], 'Invalid shape for softmax'
         is_1d = len(shape) == 2 # if 1D, then axis=1, 0th axis is batch size
@@ -610,6 +645,8 @@ class ComputationalGraph:
 
     # data manipulation/view functions
     def split(self, W, sections=1, axis=-1):
+        if axis < 0:
+            axis += W.ndim
         outs = np.split(W.data, sections, axis=axis)
         outs_list = list()
         for e in outs:
@@ -644,6 +681,8 @@ class ComputationalGraph:
         return out
 
     def cat(self, inputs_list, axis=-1):
+        if axis < 0:
+            axis += inputs_list[0].ndim
         split_points = np.cumsum([i.shape[axis] for i in inputs_list[:-1]])
         out = ai.parameter.Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
 
@@ -661,11 +700,10 @@ class ComputationalGraph:
         return out
 
     def transpose(self, x, axis0=None, axis1=None):     # transpose
-
-        if len(x.shape) == 1:
+        if x.ndim == 1:
                 raise ValueError('no transpose operation supported for 1D tensors')
         if axis0 is None or axis1 is None:
-            if len(x.shape) == 2:
+            if x.ndim == 2:
                 axis0, axis1 = 0, 1
             else:
                 raise ValueError('axis0 and axis1 must be specified for transpose operation on tensors with more than 2 dimensions')
@@ -689,8 +727,8 @@ class ComputationalGraph:
 
     def reshape(self, x, shape):
         old_shape = x.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = np.ascontiguousarray(x.data).reshape(shape)
+        out = np.ascontiguousarray(x.data).reshape(shape)
+        out = ai.parameter.Parameter(data=out, init_zeros=True, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -702,6 +740,40 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return out
+
+    # utility functions for computational graph ops
+    def __make_broadcastable(self, x, y):
+        x_1d_axes, y_1d_axes = [], []
+        x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
+        x_shape, y_shape = x.shape, y.shape
+        x_data = x.data
+        y_data = y.data
+
+        if x_ndim_orig < y_ndim_orig:
+            x_data = x_data.reshape(*[1 for _ in range(len(y_ndim_orig - x_ndim_orig))], *x_shape)
+        elif y_ndim_orig < x_ndim_orig:
+            y_data = y_data.reshape(*[1 for _ in range(len(x_ndim_orig - y_ndim_orig))], *y_shape)
+
+        # assert if broadcastable still
+        broadcastable = True
+        for ax, ay in zip(x_data.shape, y_data.shape):
+            if ax == ay or ax == 1 or ay == 1:
+                continue
+            else:
+                broadcastable = False
+                break
+        assert broadcastable, f"arrays of shapes {x_shape} and {y_shape} can't be broadcasted."
+
+        for axis in range(len(x_data.shape)):
+            if x_data.shape[axis] == 1 and y_data.shape[axis] == 1:
+                continue
+            if x_data.shape[axis] == 1:
+                x_1d_axes.append(axis)
+            elif y_data.shape[axis] == 1:
+                y_1d_axes.append(axis)
+        x_1d_axes, y_1d_axes = tuple(x_1d_axes), tuple(y_1d_axes)
+        
+        return x_data, x_1d_axes, y_data, y_1d_axes
 
 
 G = ComputationalGraph()
