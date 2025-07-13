@@ -45,7 +45,7 @@ class Conv1d(Module):
         out = self.graph.conv1d(x, self.K, self.stride, self.padding)
 
         if self.bias:   # adding bias
-            out = self.graph.add(out, self.b, axis=(0, -1))
+            out = out + self.b
 
         return out
 
@@ -90,7 +90,7 @@ class Conv2d(Module):
         out = self.graph.conv2d(x, self.K, self.stride, self.padding)
 
         if self.bias:   # adding bias
-            out = self.graph.add(out, self.b, axis=(0, -2, -1))
+            out = out + self.b
 
         return out
 
@@ -138,6 +138,6 @@ class ConvTranspose2d(Module):
         out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.output_padding)
 
         if self.bias:   # adding bias
-            out = self.graph.add(out, self.b, axis=(0, -2, -1))
+            out = out + self.b
 
         return out

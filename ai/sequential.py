@@ -31,15 +31,15 @@ class LSTM(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        i_h = self.graph.dot(x, self.graph.transpose(self.W_ih))
+        i_h = x @ self.W_ih.transpose()
         if self.bias:
-            i_h = self.graph.add(i_h, self.b_ih, axis=(0,))
+            i_h = i_h + self.b_ih
 
-        h_h = self.graph.dot(h, self.graph.transpose(self.W_hh))
+        h_h = h @ self.W_hh.transpose()
         if self.bias:
-            h_h = self.graph.add(h_h, self.b_hh, axis=(0,))
+            h_h = h_h + self.b_hh
 
-        gates = self.graph.add(i_h, h_h)
+        gates = i_h + h_h
 
         # forget, input, gate(also called cell gate - different from cell state), output gates of the lstm cell
         # useful: http://colah.github.io/posts/2015-08-Understanding-LSTMs/
@@ -50,8 +50,8 @@ class LSTM(Module):
         g = self.graph.tanh(g)
         o = self.graph.sigmoid(o)
 
-        c = self.graph.add(self.graph.multiply(f, c), self.graph.multiply(i, g))
-        h = self.graph.multiply(o, self.graph.tanh(c))
+        c = (f * c) + (i * g)
+        h = o * self.graph.tanh(c)
 
         return (h, c)
 
@@ -83,15 +83,15 @@ class RNN(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        i_h = self.graph.dot(x, self.graph.transpose(self.W_ih))
+        i_h = x @ self.W_ih.transpose()
         if self.bias:
-            i_h = self.graph.add(i_h, self.b_ih, axis=(0,))
+            i_h = i_h + self.b_ih
 
-        h_h = self.graph.dot(h, self.graph.transpose(self.W_hh))
+        h_h = h @ self.W_hh.transpose()
         if self.bias:
-            h_h = self.graph.add(h_h, self.b_hh, axis=(0,))
+            h_h = h_h + self.b_hh
 
-        h = self.graph.add(i_h, h_h)
+        h = i_h + h_h
 
         h = self.graph.tanh(h)
 

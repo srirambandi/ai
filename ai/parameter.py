@@ -11,10 +11,10 @@ class Parameter:
                 normal=False, mean=0.0, std=0.01):
 
         # properties
-        self.shape = shape
-        self.data = data
-        self.grad = grad
-        self.requires_grad = requires_grad  # if the parameter is a variable or an input/constant
+        self._shape = shape
+        self._data = data
+        self._grad = grad
+        self._requires_grad = requires_grad  # if the parameter is a variable or an input/constant
 
         # node id - in the bfs like graph walk during forward pass, the node number
         # of the path ie., the latest backward op of which this parameter was an output
@@ -42,40 +42,40 @@ class Parameter:
 
     def init_params(self):
 
-        if self.data is not None:
+        if self._data is not None:
             # initiating weights with passed data object of kind list/numpy-ndarray
-            if not isinstance(self.data, np.ndarray):
-                self.data = np.array(self.data)
-            self.shape = self.data.shape   # resolving conflict with passed shape and data shape
+            if not isinstance(self._data, np.ndarray):
+                self._data = np.array(self._data)
+            self._shape = self._data.shape   # resolving conflict with passed shape and data shape
 
         elif self.init_zeros:
             # initiating with zeros of given shape
-            self.data = np.zeros(self.shape)
+            self._data = np.zeros(self._shape)
 
         elif self.init_ones:
             # initiating with ones(or a constant) of given shape
-            self.data = np.ones(self.shape) * self.constant
+            self._data = np.ones(self._shape) * self.constant
 
         elif self.uniform:
             # random initiation with uniform distribution
-            self.data = np.random.uniform(self.low, self.high, self.shape)
+            self._data = np.random.uniform(self.low, self.high, self._shape)
 
         else:
             # random initiation with gaussian distribution
             self.normal = True
-            self.data = np.random.normal(self.mean, self.std, self.shape)
+            self._data = np.random.normal(self.mean, self.std, self._shape)
 
         # setting gradient of parameter wrt some scalar, as zeros
-        if self.grad is None:
-            self.grad = np.zeros(self.shape)
+        if self._grad is None:
+            self._grad = np.zeros(self._shape)
         else:
-            if not isinstance(self.grad, np.ndarray):
-                self.grad = np.array(self.grad)
-            assert self.data.shape == self.grad.shape, 'data and grad should be of same shape'
+            if not isinstance(self._grad, np.ndarray):
+                self._grad = np.array(self._grad)
+            assert self._data.shape == self._grad.shape, 'data and grad should be of same shape'
 
     def __repr__(self):
-        parameter_schema = f'Parameter(shape={self.shape}, requires_grad={self.requires_grad}) containing:\n'
-        parameter_schema += f'Data: {self.data}'
+        parameter_schema = f'Parameter(shape={self._shape}, requires_grad={self._requires_grad}) containing:\n'
+        parameter_schema += f'Data: {self._data}'
 
         return parameter_schema
 
@@ -89,7 +89,7 @@ class Parameter:
 
         if grad is not None:
             if not isinstance(grad, np.ndarray):
-                self.grad = np.array(grad)
+                self._grad = np.array(grad)
 
         if to is None:
             to_node_id = 0    # execute backward all the way to start
@@ -113,12 +113,10 @@ class Parameter:
 
         if not isinstance(other, Parameter):
             if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self.shape)
+                constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
-
-        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.add() with axis argument.')
 
         return self.graph.add(self, other)
 
@@ -126,12 +124,10 @@ class Parameter:
 
         if not isinstance(other, Parameter):
             if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self.shape)
+                constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
-
-        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.subtract() with axis argument.')
 
         return self.graph.subtract(self, other)
 
@@ -139,12 +135,10 @@ class Parameter:
 
         if not isinstance(other, Parameter):
             if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self.shape)
+                constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
-
-        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.multiply() with axis argument.')
 
         return self.graph.multiply(self, other)
 
@@ -159,12 +153,10 @@ class Parameter:
 
         if not isinstance(other, Parameter):
             if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self.shape)
+                constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
             other = Parameter(data=other, requires_grad=False, graph=self.graph)
-
-        assert self.shape == other.shape, (f'Objects not of same shape: {self.shape} and {other.shape}. Use G.divide() with axis argument.')
 
         return self.graph.divide(self, other)
 
@@ -184,52 +176,57 @@ class Parameter:
     @property
     def T(self):
 
-        data = np.ascontiguousarray(self.data.T)
-        grad = np.ascontiguousarray(self.grad.T)
-        shape = tuple(reversed(self.shape))
+        data = np.ascontiguousarray(self._data.T)
+        grad = np.ascontiguousarray(self._grad.T)
+        shape = tuple(reversed(self._shape))
 
-        return Parameter(shape=shape, data=data, grad=grad, requires_grad=self.requires_grad, graph=self.graph)
+        return Parameter(shape=shape, data=data, grad=grad, requires_grad=self._requires_grad, graph=self.graph)
 
     # shape
     @property
     def shape(self):
-        assert self.shape == self.data.shape and self.data.shape == self.grad.shape, f'Something is wrong with the Parameter, \
-            shape={self.shape}, data.shape={self.data.shape}, grad.shape={self.grad.shape}'
+        return self._shape
 
-        return self.shape
+    @shape.setter
+    def shape(self, shape):
+        self._shape = shape
 
     # number of dimensions
     @property
     def ndim(self):
-        assert self.shape == self.data.shape and self.data.shape == self.grad.shape, f'Something is wrong with the Parameter, \
-            shape={self.shape}, data.shape={self.data.shape}, grad.shape={self.grad.shape}'
+        assert self._shape == self._data.shape and self._data.shape == self._grad.shape, f'Something is wrong with the Parameter, \
+            shape={self._shape}, data.shape={self._data.shape}, grad.shape={self._grad.shape}'
 
-        return self.data.ndim
+        return self._data.ndim
 
     @property
     def data(self):
-        return self.data
+        return self._data
 
     @data.setter
     def data(self, data):
         assert data is not None, "can't assign None to data"
         assert isinstance(data, np.ndarray), f"can't assign data of type {type(data)}."
-        assert data.shapa == self.shape, f"can't assign data of shape {data.shape} to Parameter of shape {self.shape}"
+        assert data.shapa == self._shape, f"can't assign data of shape {data.shape} to Parameter of shape {self._shape}"
 
-        self.data = data
+        self._data = data
 
     @property
     def grad(self):
-        return self.grad
+        return self._grad
 
     @grad.setter
     def grad(self, grad):
         assert grad is not None, "can't assign None to grad"
         assert isinstance(grad, np.ndarray), f"can't assign grad of type {type(grad)}."
-        assert grad.shapa == self.shape, f"can't assign grad of shape {grad.shape} to Parameter of shape {self.shape}"
+        assert grad.shapa == self._shape, f"can't assign grad of shape {grad.shape} to Parameter of shape {self._shape}"
 
-        self.grad = grad
+        self._grad = grad
 
     @property
     def requires_grad(self):
-        return self.requires_grad
+        return self._requires_grad
+    
+    @requires_grad.setter
+    def requires_grad(self, requires_grad):
+        self._requires_grad = requires_grad

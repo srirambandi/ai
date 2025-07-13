@@ -173,7 +173,7 @@ class ComputationalGraph:
 
     def sum(self, h, axis=None):   # sum of all elements in the matrix
         if axis == None:
-            res = np.sum(h.data).reshape(1, 1)
+            res = np.sum(h.data).reshape(1, 1)  # just a choice to represet default shape as (1, 1). Should I do it like this?
         else:
             res = np.sum(h.data, axis=axis, keepdims=True)
         out = ai.parameter.Parameter(data=res, graph=self)

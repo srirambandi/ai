@@ -41,16 +41,16 @@ class BatchNorm2d(Module):
             eps.data.fill(self.eps)
 
             # calculate mean and variance
-            mean = self.graph.divide(self.graph.sum(x, axis=self.normalized_axes), normalized_size)
-            centered = self.graph.subtract(x, mean, axis=self.normalized_axes)
-            var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=self.normalized_axes), normalized_size)
+            mean = self.graph.sum(x, axis=self.normalized_axes) / normalized_size
+            centered = x - mean
+            var = self.graph.sum(self.graph.power(centered, 2), axis=self.normalized_axes) / normalized_size
 
             self.m.data = (1 - self.momentum) * self.m.data + self.momentum * mean.data
             self.v.data = (1 - self.momentum) * self.v.data + self.momentum * var.data
 
             # normalize the data to zero mean and unit variance
-            rstd = self.graph.power(self.graph.add(var, eps), -0.5)
-            normalized = self.graph.multiply(centered, rstd, axis=self.normalized_axes)
+            rstd = self.graph.power((var + eps), -0.5)
+            normalized = centered * rstd
 
         else:   # testing/inference
 
@@ -59,8 +59,8 @@ class BatchNorm2d(Module):
             normalized = Parameter(data=normalized, requires_grad=False, graph=self.graph)
 
         # scale and shift
-        out = self.graph.multiply(normalized, self.gamma, axis=self.normalized_axes)    # scale
-        out = self.graph.add(out, self.beta, axis=self.normalized_axes)    # shift
+        out = normalized * self.gamma    # scale
+        out = out + self.beta    # shift
 
         return out
 
@@ -101,13 +101,13 @@ class LayerNorm(Module):
             eps.fill(self.eps)
 
             # calculate mean and variance
-            mean = self.graph.divide(self.graph.sum(x, axis=self.normalized_axes), normalized_size)
-            centered = self.graph.subtract(x, mean, axis=self.normalized_axes)
-            var = self.graph.divide(self.graph.sum(self.graph.power(centered, 2), axis=self.normalized_axes), normalized_size)
+            mean = self.graph.sum(x, axis=self.normalized_axes) / normalized_size
+            centered = x - mean
+            var = self.graph.sum(self.graph.power(centered, 2), axis=self.normalized_axes) / normalized_size
 
             # normalize the data to zero mean and unit variance
-            rstd = self.graph.power(self.graph.add(var, eps), -0.5)
-            normalized = self.graph.multiply(centered, rstd, axis=self.normalized_axes)
+            rstd = self.graph.power((var + eps), -0.5)
+            normalized = centered * rstd
 
         else:
             centered = np.subtract(x.data, np.mean(x.data, axis=self.normalized_axes, keepdims=True))
@@ -115,7 +115,7 @@ class LayerNorm(Module):
             normalized = Parameter(data=normalized, requires_grad=False, graph=self.graph)
 
         # scale and shift
-        out = self.graph.multiply(normalized, self.gamma, axis=self.normalized_axes)    # scale
-        out = self.graph.add(out, self.beta, axis=self.normalized_axes)    # shift
+        out = normalized * self.gamma    # scale
+        out = out + self.beta    # shift
 
         return out
