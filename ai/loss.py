@@ -1,5 +1,7 @@
+import numpy as np
 from ai.parameter import Parameter
 from ai.graph import G
+from ai.module import Module
 
 
 # |    ||
@@ -7,30 +9,15 @@ from ai.graph import G
 # ||   |_
 #
 # is this loss? Yes, it is.
-class Loss:
-    def __init__(self, loss_fn=None, graph=G):
-        self.loss_fn = loss_fn
+class MSELoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
         self.graph = graph
 
-    def loss(self, y_out, y_true):
-
-        if self.loss_fn == 'MSELoss':
-            return self.mse_loss(y_out, y_true)
-        elif self.loss_fn == 'CrossEntropyLoss':
-            return self.cross_entropy_loss(y_out, y_true)
-        elif self.loss_fn == 'BCELoss':
-            return self.bce_loss(y_out, y_true)
-        elif self.loss_fn == 'JSDivLoss':
-            return self.js_divergence_loss(y_out, y_true)
-        elif self.loss_fn == 'TestLoss':
-            return self.test_loss(y_out)
-        else:
-          raise 'No such loss function'
-
     def __repr__(self):
-        return(f'Loss(loss_fn={self.loss_fn})')
+        return(f'MSELoss()')
 
-    def mse_loss(self, y_out, y_true):
+    def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
@@ -44,7 +31,16 @@ class Loss:
 
         return l
 
-    def cross_entropy_loss(self, y_out, y_true):
+
+class CrossEntropyLoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
+        self.graph = graph
+
+    def __repr__(self):
+        return(f'CrossEntropyLoss()')
+
+    def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
@@ -58,7 +54,16 @@ class Loss:
 
         return l
 
-    def bce_loss(self, y_out, y_true):
+
+class BCELoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
+        self.graph = graph
+
+    def __repr__(self):
+        return(f'BCELoss()')
+
+    def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
@@ -81,7 +86,16 @@ class Loss:
 
         return l
 
-    def js_divergence_loss(self, y_out, y_true):
+
+class JSDivLoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
+        self.graph = graph
+
+    def __repr__(self):
+        return(f'JSDivLoss()')
+
+    def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
             y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
@@ -101,7 +115,16 @@ class Loss:
 
         return l
 
-    def test_loss(self, y_out):
+
+class TestLoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
+        self.graph = graph
+
+    def __repr__(self):
+        return(f'TestLoss()')
+
+    def forward(self, y_out):
 
         # a test loss score function that measures the sum of elements of each output vector as the loss of that sample
         # helps identify leaks in between samples in a batch
@@ -112,9 +135,4 @@ class Loss:
 
         return l
 
-    #define loss functions
-
-
-class MSELoss(Loss):
-    def __init__(self, loss_fn=None, graph=G):
-        super().__init__(loss_fn, graph)
+#define more loss functions
