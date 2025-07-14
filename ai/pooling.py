@@ -7,7 +7,7 @@ from ai.module import Module
 # maxpool2d layer - non-parametrized layer
 class Maxpool2d(Module):
     def __init__(self, kernel_size, stride=None, padding=0, graph=G):
-        super(Maxpool2d, self).__init__()
+        super().__init__()
 
         if stride is None:
             stride = kernel_size

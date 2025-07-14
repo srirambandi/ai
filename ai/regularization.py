@@ -7,7 +7,7 @@ from ai.module import Module
 # dropout layer - non-parametrized layer
 class Dropout(Module):
     def __init__(self, p=0.5, graph=G):
-        super(Dropout, self).__init__()
+        super().__init__()
         self.p = p
         self.graph = graph
 

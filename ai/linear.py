@@ -8,7 +8,7 @@ from ai.module import Module
 # the general feed-forward network
 class Linear(Module):
     def __init__(self, in_features, out_features, bias=True, graph=G):
-        super(Linear, self).__init__()
+        super().__init__()
         self.in_features = in_features  # previous layer units
         self.out_features = out_features  # next layer units
         self.bias = bias

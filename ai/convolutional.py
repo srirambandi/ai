@@ -7,7 +7,7 @@ from ai.module import Module
 # 1D convolutional neural network
 class Conv1d(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True, graph=G):
-        super(Conv1d, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
 
@@ -53,7 +53,7 @@ class Conv1d(Module):
 # 2D convolutional neural network
 class Conv2d(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True, graph=G):
-        super(Conv2d, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
 
@@ -98,7 +98,7 @@ class Conv2d(Module):
 # 2d transposed convolutional neural network
 class ConvTranspose2d(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, bias=True, graph=G):
-        super(ConvTranspose2d, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
 

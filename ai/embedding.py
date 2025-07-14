@@ -8,7 +8,7 @@ from ai.module import Module
 # a look up table that maps ints to embed vectors
 class Embedding(Module):
     def __init__(self, num_embeddings, embedding_dim, graph=G):
-        super(Embedding, self).__init__()
+        super().__init__()
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.graph = graph

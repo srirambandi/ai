@@ -113,3 +113,8 @@ class Loss:
         return l
 
     #define loss functions
+
+
+class MSELoss(Loss):
+    def __init__(self, loss_fn=None, graph=G):
+        super().__init__(loss_fn, graph)

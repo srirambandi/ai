@@ -7,7 +7,7 @@ from ai.module import Module
 # batch normalization layer
 class BatchNorm2d(Module):
     def __init__(self, num_channels, eps=1e-5, momentum=0.1, graph=G):
-        super(BatchNorm2d, self).__init__()
+        super().__init__()
         self.num_channels = num_channels  # should be equal to the number of channels in the input
         self.eps = eps    # small value to avoid division by zero
         self.momentum = momentum
@@ -67,7 +67,7 @@ class BatchNorm2d(Module):
 
 class LayerNorm(Module):
     def __init__(self, normalized_shape, eps=1e-5, graph=G):
-        super(LayerNorm, self).__init__()
+        super().__init__()
 
         if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)

@@ -7,7 +7,7 @@ from ai.module import Module
 # sequence models: LSTM cell
 class LSTM(Module):
     def __init__(self, input_size, hidden_size, bias=True, graph=G):
-        super(LSTM, self).__init__()
+        super().__init__()
         self.input_size = input_size    # size of the input at each recurrent tick
         self.hidden_size = hidden_size  # size of hidden units h and c
         self.bias = bias
@@ -59,7 +59,7 @@ class LSTM(Module):
 # sequence models: RNN cell
 class RNN(Module):
     def __init__(self, input_size, hidden_size, bias=True, graph=G):
-        super(RNN, self).__init__()
+        super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.bias = bias
