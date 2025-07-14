@@ -150,7 +150,7 @@ class ComputationalGraph:
         # make x and y broadcastable
         x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
         x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
-        out = ai.parameter.Parameter(data= np.divide(x_data, y_data + eps), graph=self)
+        out = ai.parameter.Parameter(data=np.divide(x_data, y_data + eps), graph=self)
 
         if self.grad_mode:
             def backward():
@@ -192,8 +192,7 @@ class ComputationalGraph:
     def power(self, h, exp):   # element wise power
         assert isinstance(exp, int) or isinstance(exp, float), "power operation only supports int or float raises for now."
         out = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
-        out = ai.parameter.Parameter(h.shape, init_zeros=True, graph=self)
-        out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -550,9 +549,8 @@ class ComputationalGraph:
         return out
 
     def sigmoid(self, z):   # element wise sigmoid activations
-        shape = z.shape
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
-        out.data = 1.0/(1.0 + np.exp(-1.0*z.data))
+        out = 1.0/(1.0 + np.exp(-1.0*z.data))
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -572,7 +570,6 @@ class ComputationalGraph:
         assert axis in [1, 2] and axis < len(z.shape), 'Invalid axis for softmax'
         assert len(shape) in [2, 3], 'Invalid shape for softmax'
         is_1d = len(shape) == 2 # if 1D, then axis=1, 0th axis is batch size
-        out = ai.parameter.Parameter(shape, init_zeros=True, graph=self)
         
         # Subtracting the max for numerical stability
         e_z = np.exp(z.data - np.max(z.data, axis=axis, keepdims=True))
@@ -582,7 +579,8 @@ class ComputationalGraph:
         sum_e_z[sum_e_z == 0] = 1e-8 # for safe and stable division
         
         # Softmax calculation
-        out.data = e_z / sum_e_z
+        out = e_z / sum_e_z
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -730,7 +728,7 @@ class ComputationalGraph:
     def reshape(self, x, shape):
         old_shape = x.shape
         out = np.ascontiguousarray(x.data).reshape(shape)
-        out = ai.parameter.Parameter(data=out, init_zeros=True, graph=self)
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
