@@ -27,7 +27,7 @@ class MSELoss(Module):
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = l / float(y_true.shape[0])
 
-        l.grad[0, 0] = 1.0  # dl/dl = 1.0
+        l.grad = np.ones_like(l.data)  # dl/dl = 1.0
 
         return l
 
@@ -50,7 +50,7 @@ class CrossEntropyLoss(Module):
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = l / float(y_true.shape[0])
 
-        l.grad[0, 0] = 1.0  # dl/dl = 1.0
+        l.grad = np.ones_like(l.data)  # dl/dl = 1.0
 
         return l
 
@@ -82,7 +82,7 @@ class BCELoss(Module):
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = l / float(y_true.shape[0])
 
-        l.grad[0, 0] = 1.0  # dl/dl = 1.0
+        l.grad = np.ones_like(l.data)  # dl/dl = 1.0
 
         return l
 
@@ -111,7 +111,7 @@ class JSDivLoss(Module):
         # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
         l = l / float(y_true.shape[0])
 
-        l.grad[0, 0] = 1.0  # dl/dl = 1.0
+        l.grad = np.ones_like(l.data)  # dl/dl = 1.0
 
         return l
 
@@ -131,7 +131,7 @@ class TestLoss(Module):
         l = self.graph.sum(y_out)
         l = l / float(y_out.shape[0])
 
-        l.grad[0, 0] = 1.0
+        l.grad = np.ones_like(l.data)
 
         return l
 

@@ -172,11 +172,8 @@ class ComputationalGraph:
         return out
 
     def sum(self, h, axis=None):   # sum of all elements in the matrix
-        if axis == None:
-            res = np.sum(h.data).reshape(1, 1)  # just a choice to represet default shape as (1, 1). Should I do it like this?
-        else:
-            res = np.sum(h.data, axis=axis, keepdims=True)
-        out = ai.parameter.Parameter(data=res, graph=self)
+        out = np.sum(h.data, axis=axis, keepdims=True)
+        out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -188,8 +185,13 @@ class ComputationalGraph:
             self.nodes.append(node)
 
         return out
+    
+    def pow(self, h, exp):
+        return self.power(h, exp)
 
     def power(self, h, exp):   # element wise power
+        assert isinstance(exp, int) or isinstance(exp, float), "power operation only supports int or float raises for now."
+        out = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
         out = ai.parameter.Parameter(h.shape, init_zeros=True, graph=self)
         out.data = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
 
@@ -762,7 +764,7 @@ class ComputationalGraph:
             else:
                 broadcastable = False
                 break
-        assert broadcastable, f"arrays of shapes {x_shape} and {y_shape} can't be broadcasted."
+        assert broadcastable, f'arrays of shapes {x_shape} and {y_shape} cannnot be broadcasted.'
 
         for axis in range(len(x_data.shape)):
             if x_data.shape[axis] == 1 and y_data.shape[axis] == 1:

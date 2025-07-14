@@ -161,7 +161,7 @@ class Parameter:
         return self.graph.divide(self, other)
 
     def __pow__(self, other):
-        return self.graph.power(self, other)
+        return self.graph.pow(self, other)
 
     def transpose(self, axis0=None, axis1=None):
         return self.graph.transpose(self, axis0=axis0, axis1=axis1)
