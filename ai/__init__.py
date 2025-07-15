@@ -22,6 +22,7 @@ from ai.pooling import Maxpool2d
 from ai.regularization import Dropout
 from ai.embedding import Embedding
 from ai.loss import MSELoss, CrossEntropyLoss, BCELoss, JSDivLoss, TestLoss
+from activation import ReLU, LeakyReLU, GELU, Sigmoid, Tanh, Softmax
 
 # beloved optimizers
 from ai.optimizer import Optimizer

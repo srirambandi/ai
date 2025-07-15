@@ -511,7 +511,7 @@ class ComputationalGraph:
 
         return out
 
-    def lrelu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
+    def leaky_relu(self, z, alpha=1e-2):      # element wise Leaky ReLU activations
         out = ai.parameter.Parameter(data=np.maximum(z.data, alpha * z.data), graph=self)
 
         if self.grad_mode:
@@ -520,7 +520,7 @@ class ComputationalGraph:
                     z.grad += out.grad.copy()
                     z.grad[z.data < 0] *= alpha
 
-            node = {'func': 'lrelu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = {'func': 'leaky_relu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
