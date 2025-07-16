@@ -1,42 +1,14 @@
 import numpy as np
+from abc import ABC, abstractmethod
 from ai.graph import G
 
 
 # Optimizers to take that drunken step down the hill
-class Optimizer:
-    def __init__(self, parameters, optim_fn='SGD', lr=3e-4, momentum=0.9, eps=1e-8, beta1=0.9, beta2=0.999, rho=0.95, graph=G):
+# useful: https://arxiv.org/pdf/1609.04747.pdf
+class Optimizer(ABC):
+    def __init__(self, parameters, graph=G):
         self.parameters = parameters  # a list of all layers of the model
-        self.optim_fn = optim_fn    # the optimizing function(SGD, Adam, Adagrad, RMSProp)
-        self.lr = lr    # alpha: size of the step to update the parameters
-        self.momentum = momentum
-        self.eps = eps
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.rho = rho
-        self.graph = graph
-        self.t = 0  # iteration count
-        self.m = list() # (momentumAdam/Adagrad/Adadelta)
-        self.v = list() # (Adam/Adadelta)
-
-        if self.optim_fn != 'SGD' or self.momentum > 0.0:
-
-            # only vanilla SGD doesn't require any lists
-            # momentum in SGD: stores deltas of previous iterations
-            # Adam: 1st moment(mean) vector of gradients
-            # Adagrad: stores square of gradient
-            # Adadelta: Accumulates gradient
-            for parameter in self.parameters:
-                self.m.append(np.zeros(parameter.shape))
-
-            if self.optim_fn == 'Adam' or self.optim_fn == 'Adadelta':
-
-                # Adam: 2nd moment(raw variance here) of gradients
-                # Adadelta: Accumulates updates
-                for parameter in self.parameters:
-                    self.v.append(np.zeros(parameter.shape))
-
-    def __repr__(self):
-        return(f'Optimizer(optim_fn={self.optim_fn}, lr={self.lr}, momentum={self.momentum})')
+        self.graph = graph        
 
     # a very important step in learning time
     def zero_grad(self):
@@ -48,27 +20,25 @@ class Optimizer:
         for parameter in self.parameters:
             parameter.grad = np.zeros(parameter.shape)
 
+    @abstractmethod
     def step(self):
-        # useful: https://arxiv.org/pdf/1609.04747.pdf
+        raise NotImplementedError
 
-        if self.optim_fn == 'SGD':
-            return self.stochastic_gradient_descent()
-        elif self.optim_fn == 'Adam':
-            return self.adam()
-        elif self.optim_fn == 'Adagrad':
-            return self.adagard()
-        elif self.optim_fn == 'Adadelta':
-            return self.adadelta()
-        elif self.optim_fn == 'RMSProp':
-            return self.rms_prop()
-        else:
-          raise 'No such optimization function'
 
-    # Stochastic Gradient Descent optimization function
-    def stochastic_gradient_descent(self):
-        if self.t < 1: print('using SGD')
+class SGD(Optimizer):
+    def __init__(self, parameters, lr=0.001, momentum=0, graph=G):
+        super().__init__(parameters, graph=graph)
+        self.lr = lr    # size of the step to update the parameters
+        self.momentum = momentum
+        self.m = list()
+        
+        for parameter in self.parameters:
+            self.m.append(np.zeros(parameter.shape))
 
-        self.t += 1
+    def __repr__(self):
+        return(f'SGD(lr={self.lr}, momentum={self.momentum})')
+
+    def step(self):
         for p in range(len(self.parameters)):
 
             if self.momentum > 0.0:
@@ -82,12 +52,27 @@ class Optimizer:
                 # Update parameters with vanilla SGD
                 self.parameters[p].data -= self.lr * self.parameters[p].grad
 
-    # Adam optimization function
-    def adam(self):
-        # useful: https://arxiv.org/pdf/1412.6980.pdf
-        if self.t < 1: print('using Adam')
 
-        self.t += 1
+class Adam(Optimizer):
+    def __init__(self, parameters, lr=0.001, beta1=0.9, beta2=0.999, eps=1e-8, graph=G):
+        super().__init__(parameters, graph=graph)
+        self.lr = lr
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.eps = eps
+        self.m = list()
+        self.v = list()
+
+        for parameter in self.parameters:
+            self.m.append(np.zeros(parameter.shape))
+            self.v.append(np.zeros(parameter.shape))
+
+    def __repr__(self):
+        return(f'Adam()')
+
+    def step(self):
+        # useful: https://arxiv.org/pdf/1412.6980.pdf
+
         for p in range(len(self.parameters)):
 
             # Update biased first moment estimate
@@ -105,25 +90,48 @@ class Optimizer:
             # Update parameters
             self.parameters[p].data -= self.lr * m_cap / (np.sqrt(v_cap) + self.eps)
 
-    # Adagrad optimization function
-    def adagard(self):
-        if self.t < 1: print('using Adagrad')
 
-        self.t += 1
+class Adagrad(Optimizer):
+    def __init__(self, parameters, lr=0.001, eps=1e-8, graph=G):
+        super().__init__(parameters, graph=graph)
+        self.lr = lr
+        self.eps = eps
+        self.grad_square
+
+        for parameter in self.parameters:
+            self.grad_square.append(np.zeros(parameter.shape))
+
+    def __repr__(self):
+        return(f'Adagrad()')
+
+    def step(self):
         for p in range(len(self.parameters)):
 
             # update memory
-            self.m[p] += self.parameters[p].grad * self.parameters[p].grad
+            self.grad_square[p] += self.parameters[p].grad * self.parameters[p].grad
 
             # Update parameters
-            self.parameters[p].data -= self.lr * self.parameters[p].grad / np.sqrt(self.m[p] + self.eps)
+            self.parameters[p].data -= self.lr * self.parameters[p].grad / np.sqrt(self.grad_square[p] + self.eps)
 
-    # Adadelta optimization function
-    def adadelta(self):
+
+class Adadelta(Optimizer):
+    def __init__(self, parameters, rho=0.95, eps=1e-8, graph=G):
+        super().__init__(parameters, graph=graph)
+        self.rho = rho
+        self.eps = eps
+        self.m = list()
+        self.v = list()
+
+        for parameter in self.parameters:
+            self.m.append(np.zeros(parameter.shape))
+            self.v.append(np.zeros(parameter.shape))
+
+    def __repr__(self):
+        return(f'Adadelta()')
+
+    def step(self):
         # useful: https://arxiv.org/pdf/1212.5701.pdf
-        if self.t < 1: print('using Adadelta')
 
-        self.t += 1
         for p in range(len(self.parameters)):
 
             # Accumulate Gradient:
@@ -138,18 +146,30 @@ class Optimizer:
             # Apply Update:
             self.parameters[p].data += delta
 
-    # RMSProp optimization function
-    def rms_prop(self):
-        # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
-        if self.t < 1: print('using RMSProp')
 
-        self.t += 1
+class RMSprop(Optimizer):
+    def __init__(self, parameters, lr=0.01, alpha=0.99, eps=1e-8, graph=G):
+        super().__init__(parameters, graph=graph)
+        self.lr = lr
+        self.alpha = alpha
+        self.eps = eps
+        self.v = list()
+        
+        for parameter in self.parameters:
+            self.v.append(np.zeros(parameter.shape))
+
+    def __repr__(self):
+        return(f'RMSprop()')
+
+    def step(self):
+        # useful: https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf
+
         for p in range(len(self.parameters)):
 
             # Accumulating moving average of the square of the Gradient:
-            self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
+            self.v[p] = self.alpha * self.v[p] + (1 - self.alpha) * self.parameters[p].grad * self.parameters[p].grad
 
             # Apply Update:
-            self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.m[p]) + self.eps)
+            self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.v[p]) + self.eps)
 
-    #define optimizers
+#define optimizers

@@ -28,6 +28,8 @@ class ComputationalGraph:
         if y_is_1d:
             y_data = y.data.reshape(-1, 1)
 
+        assert x_data.shape[-1] == y_data.shape[-2], f"Can't matmul matrices of shapes x.shape: {x.shape} and y.shape: {y.shape}."
+
         out = np.matmul(x_data, y_data)
 
         if x_is_1d and y_is_1d:

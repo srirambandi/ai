@@ -25,7 +25,7 @@ from ai.loss import MSELoss, CrossEntropyLoss, BCELoss, JSDivLoss, TestLoss
 from activation import ReLU, LeakyReLU, GELU, Sigmoid, Tanh, Softmax
 
 # beloved optimizers
-from ai.optimizer import Optimizer
+from ai.optimizer import SGD, Adam, Adagrad, Adadelta, RMSprop
 
 from ai.utils import draw_graph, clip_grad_value
 
