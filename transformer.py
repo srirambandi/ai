@@ -7,88 +7,86 @@ Author: Sri Ram Bandi (srirambandi.654@gmail.com)
 MIT License
 """
 
+import ai
 import math
 import numpy as np
 from dataclasses import dataclass
-from ai.parameter import Parameter
-from ai.module import Module
-from ai.linear import Linear
 
 
-class SelfAttention(Module):
+class CausalSelfAttention(ai.Module):
     """
-    self attention for 1 head in the multi head attention.
+    self attention with multiple heads.
     this is a causal self attention, because of the type of masking in forward():
     every token only attends to the tokens before it.
     """
     def __init__(self, config):
-        super(SelfAttention, self).__init__()
+        super().__init__()
         self.d_model = config.d_model
         self.num_head = config.num_head
-        self.Q_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
-        self.K_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
-        self.V_proj = Linear(self.d_model // self.num_head, self.d_model, bias=config.bias)
-        self.A_proj = Linear(self.d_model, self.d_model, bias=config.bias)
-        mask = np.ones((1, config.context_length, config.context_length))
+        # query, key and value projections, for all heads
+        self.QKV_proj = ai.Linear(self.d_model, 3 * self.d_model, bias=config.bias)
+        # attention output projection
+        self.A_proj = ai.Linear(self.d_model, self.d_model, bias=config.bias)
+        # regularization
+        self.attn_dropout = ai.Dropout(config.dropout)
+        self.residual_dropout = ai.Dropout(config.dropout)
+        mask = np.ones((1, 1, config.context_length, config.context_length))
         mask = np.tril(mask)
-        mask = np.where(mask == 0, float("-inf"), mask)
-        self.causal_mask = Parameter(data=mask, requires_grad=False)
+        mask = np.where(mask==0, float("-inf"), mask)
+        mask = np.where(mask==1, 0, mask)
+        self.causal_mask = ai.Parameter(data=mask, requires_grad=False)
 
     def forward(self, x):
-        Q = self.Q_proj(x)  # (B, L, D)
-        K = self.K_proj(x)  # (B, L, D)
-        V = self.V_proj(x)  # (B, L, D)
-        d_k = math.sqrt(K.shape[-1])    # which is d_model(D) generally
-        dot_product = Q @ K.transpose(axis0=1, axis1=2) # (B, L, L)
+        B, T, C = x.shape
+        Q, K, V = self.QKV_proj(x).split(sections=3, axis=-1)
+        Q = Q.reshape(B, T, self.num_head, C // self.num_head).transpose(1, 2)
+        K = K.reshape(B, T, self.num_head, C // self.num_head).transpose(1, 2)
+        V = V.reshape(B, T, self.num_head, C // self.num_head).transpose(1, 2)
+
+        d_k = math.sqrt(K.shape[-1])
+        dot_product = Q @ K.transpose(-2, -1)
         scaled_dot_prod = dot_product / d_k
-        masked_dot_prod = self.graph.multiply(scaled_dot_prod, self.causal_mask)
-        attention_probs = self.graph.softmax(masked_dot_prod, axis=-1)   # (B, L, L)
-        attention = attention_probs @ V     # (B, L, D)
-        output = self.A_proj(attention)
-
-        return output
-
-
-class MultiHeadAttention(Module):
-    def __init__(self, config, bias=True):
-        super(MultiHeadAttention, self).__init__()
-        self.num_heads = config.num_heads
-        self.config = config
-        for i in range(config.num_heads):
-            setattr(self, f"attn_{i}", SelfAttention(config, bias=bias))
+        masked_dot_prod = scaled_dot_prod + self.causal_mask[:, :, :T, :T]
+        attention_probs = self.graph.softmax(masked_dot_prod, axis=-1)
+        attention_probs = self.attn_dropout(attention_probs)
+        attention = attention_probs @ V
         
-    def forward(self, x):
-        xs = self.graph.split(x, sections=self.num_heads, axis=-1)
-        ys = []
-        # TODO: can be made efficient with vectorization or async calls
-        for i in range(self.num_heads):
-            a = getattr(self, f"attn_{i}")(xs[i])
-            ys.append(a)
-        output = self.graph.cat(ys, axis=-1)
+        attention = attention.transpose(1, 2).reshape(B, T, C)
+        output = self.residual_dropout(self.A_proj(attention))
 
         return output
 
 
-class FeedForwardNetwork(Module):
+class FeedForwardNetwork(ai.Module):
     def __init__(self, config):
-        super(FeedForwardNetwork, self).__init__()
-        self.config = config
-        self.fc = Linear(config.d_model, 4 * config.d_model, bias=config.bias)
-        self.out_proj = Linear(4 * config.d_model, config.d_model, bias=config.bias)
+        super().__init__()
+        self.fc = ai.Linear(config.d_model, 4 * config.d_model, bias=config.bias)
+        self.gelu = ai.GELU()
+        self.out_proj = ai.Linear(4 * config.d_model, config.d_model, bias=config.bias)
+        self.dropout = ai.Dropout(config.dropout)
 
     def forward(self, x):
-        output = self.out_proj(self.fc(x))
+        x = self.fc(x)
+        x = self.gelu(x)
+        x = self.out_proj(x)
+        x = self.dropout(x)
 
-        return output
+        return x
 
 
-class TransformerLayer(Module):
+class TransformerLayer(ai.Module):
     def __init__(self, config):
-        super(TransformerLayer, self).__init__()
-        self.config = config
+        super().__init__()
+        self.ln_1 = ai.LayerNorm(config.d_model)
+        self.attn = CausalSelfAttention(config)
+        self.ln_2 = ai.LayerNorm(config.d_model)
+        self.ffn = FeedForwardNetwork(config)
 
     def forward(self, x):
-        pass
+        x = x + self.attn(self.ln_1(x))
+        x = x + self.mlp(self.ln_2(x))
+
+        return x
 
 
 @dataclass
@@ -98,16 +96,48 @@ class TransformerConfig:
     num_layer: int = 12
     num_head: int = 12
     d_model: int = 768
-    bias: bool = False
+    dropout: float = 0.0
+    bias: bool = True
 
 
-class Transformer(Module):
+class Transformer(ai.Module):
     def __init__(self, config):
-        super(Transformer, self).__init__()
+        super().__init__()
         self.config = config
+        self.wte = ai.Embedding(config.vocab_size, config.d_model)
+        self.wpe = ai.Embedding(config.vocab_size, config.d_model)
+        self.dropout = ai.Dropout(config.dropout)
+        for tl in range(len(config.num_layer)):
+            setattr(f"layer_{tl}", TransformerLayer(config))
+        self.ln_f = ai.LayerNorm(config.d_model)
+        self.lm_head = ai.Linear(config.d_model, config.vocab_size)
+        # weight tying: https://paperswithcode.com/method/weight-tying
+        self.wte.embedding_table = self.lm_head.W
+        self.loss = ai.CrossEntropyLoss()
 
-    def forward(self, x):
-        pass
+    def forward(self, inputs, targets=None):
+        B, T = inputs.shape
+        assert T <= self.config.context_length, f"Cannot forward sequence of length {T}, maximum sequence length is: {self.config.context_length}"
+
+        pos = np.arange(0, T)
+        tok_emb = self.wte(inputs)
+        pos_emb = self.wpe(pos)
+        x = tok_emb + pos_emb
+        x = self.dropout(x)
+        for tl in range(len(config.num_layer)):
+            x = getattr(f"layer_{tl}")(x)
+        x = self.ln_f(x)
+
+        if targets is not None:
+            # training time - compute loss
+            logits = self.lm_head(x)
+            #TODO: do the loss properly
+        else:
+            # inference time
+            logits = self.lm_head(x)
+            loss = None
+
+        return logits, loss
 
 
 config = TransformerConfig(
@@ -116,5 +146,10 @@ config = TransformerConfig(
     num_layer = ...,
     num_head = ...,
     d_model = ...,
+    dropout = ...,
     bias = ...,
 )
+
+
+if __name__ == "__main__":
+    pass
