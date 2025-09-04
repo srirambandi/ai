@@ -8,6 +8,7 @@ from ai.graph import G
 class Optimizer(ABC):
     def __init__(self, parameters, graph=G):
         self.parameters = parameters  # a list of all layers of the model
+        self.t = 0  # iteration count
         self.graph = graph        
 
     # a very important step in learning time
@@ -73,6 +74,7 @@ class Adam(Optimizer):
     def step(self):
         # useful: https://arxiv.org/pdf/1412.6980.pdf
 
+        self.t += 1
         for p in range(len(self.parameters)):
 
             # Update biased first moment estimate

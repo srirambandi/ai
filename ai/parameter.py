@@ -111,37 +111,29 @@ class Parameter:
         new_key = tuple([slice(i, i + 1) if isinstance(i, int) else i for i in key])
 
         return self._graph.getitem(self, new_key)
-
-    def __add__(self, other):
-
+    
+    def _check_and_update_other(self, other):
         if not isinstance(other, Parameter):
             if isinstance(other, int) or isinstance(other, float):
                 constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
             other = Parameter(data=other, requires_grad=False, graph=self._graph)
+        
+        return other
+
+    def __add__(self, other):
+        other = self._check_and_update_other(other)
 
         return self._graph.add(self, other)
 
     def __sub__(self, other):
-
-        if not isinstance(other, Parameter):
-            if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self._shape)
-                constant.fill(float(other))
-                other = constant
-            other = Parameter(data=other, requires_grad=False, graph=self._graph)
+        other = self._check_and_update_other(other)
 
         return self._graph.subtract(self, other)
 
     def __mul__(self, other):
-
-        if not isinstance(other, Parameter):
-            if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self._shape)
-                constant.fill(float(other))
-                other = constant
-            other = Parameter(data=other, requires_grad=False, graph=self._graph)
+        other = self._check_and_update_other(other)
 
         return self._graph.multiply(self, other)
 
@@ -153,13 +145,7 @@ class Parameter:
         return self._graph.matmul(self, other)
 
     def __truediv__(self, other):
-
-        if not isinstance(other, Parameter):
-            if isinstance(other, int) or isinstance(other, float):
-                constant = np.empty(self._shape)
-                constant.fill(float(other))
-                other = constant
-            other = Parameter(data=other, requires_grad=False, graph=self._graph)
+        other = self._check_and_update_other(other)
 
         return self._graph.divide(self, other)
 
@@ -172,7 +158,7 @@ class Parameter:
     def reshape(self, shape):
         return self._graph.reshape(self, shape)
 
-    def split(self, sections=1, axis=-1):
+    def split(self, sections=1, axis=0):
         return self._graph.split(self, sections=sections, axis=axis)
 
     # transpose

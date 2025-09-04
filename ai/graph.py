@@ -710,6 +710,10 @@ class ComputationalGraph:
             else:
                 raise ValueError('axis0 and axis1 must be specified for transpose operation on tensors with more than 2 dimensions')
 
+        if axis0 < 0:
+            axis0 += x.ndim
+        if axis1 < 0:
+            axis1 += x.ndim
         axes = list(range(len(x.shape)))
         axes[axis0] = axis1
         axes[axis1] = axis0

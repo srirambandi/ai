@@ -29,7 +29,7 @@ class Linear(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        # y = xW.T + b
+        # y = x @ W.T + b
         out = x @ self.W.transpose() # matmul
 
         if self.bias:   # adding bias
