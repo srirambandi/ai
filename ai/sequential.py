@@ -16,10 +16,11 @@ class LSTM(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / self.hidden_size)
-        self.W_ih = Parameter((4*self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # input to hidden weight volume
-        self.W_hh = Parameter((4*self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # hidden to hidden weight volume
-        self.b_ih = Parameter((1, 4*self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
-        self.b_hh = Parameter((1, 4*self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
+        self.weight_ih = Parameter((4*self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # input to hidden weight volume
+        self.weight_hh = Parameter((4*self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # hidden to hidden weight volume
+        if self.bias:
+            self.bias_ih = Parameter((1, 4*self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # input to hidden bias vector
+            self.bias_hh = Parameter((1, 4*self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # hidden to hidden bias vector
 
     def __repr__(self):
         return(f'LSTM(input_size={self.input_size}, hidden_size={self.hidden_size}, bias={self.bias})')
@@ -31,13 +32,13 @@ class LSTM(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        i_h = x @ self.W_ih.transpose()
+        i_h = x @ self.weight_ih.transpose()
         if self.bias:
-            i_h = i_h + self.b_ih
+            i_h = i_h + self.bias_ih
 
-        h_h = h @ self.W_hh.transpose()
+        h_h = h @ self.weight_hh.transpose()
         if self.bias:
-            h_h = h_h + self.b_hh
+            h_h = h_h + self.bias_hh
 
         gates = i_h + h_h
 
@@ -68,10 +69,11 @@ class RNN(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / self.hidden_size)
-        self.W_ih = Parameter((self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
-        self.W_hh = Parameter((self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
-        self.b_ih = Parameter((1, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
-        self.b_hh = Parameter((1, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.weight_ih = Parameter((self.hidden_size, self.input_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.weight_hh = Parameter((self.hidden_size, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        if self.bias:
+            self.bias_ih = Parameter((1, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)    # not much use
+            self.bias_hh = Parameter((1, self.hidden_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
 
     def __repr__(self):
         return(f'RNN(input_size={self.input_size}, hidden_size={self.hidden_size}, bias={self.bias})')
@@ -83,13 +85,13 @@ class RNN(Module):
         if not isinstance(x, Parameter):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
-        i_h = x @ self.W_ih.transpose()
+        i_h = x @ self.weight_ih.transpose()
         if self.bias:
-            i_h = i_h + self.b_ih
+            i_h = i_h + self.bias_ih
 
-        h_h = h @ self.W_hh.transpose()
+        h_h = h @ self.weight_hh.transpose()
         if self.bias:
-            h_h = h_h + self.b_hh
+            h_h = h_h + self.bias_hh
 
         h = i_h + h_h
 

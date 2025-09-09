@@ -29,12 +29,15 @@ class Conv1d(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / (self.in_channels * self.kernel_size[0]))
-        self.K = Parameter((self.out_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
-        self.b = Parameter((1, self.out_channels, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.weight = Parameter((self.out_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        if self.bias:
+            self.bias = Parameter((1, self.out_channels, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        else:
+            self.bias = None
 
     def __repr__(self):
         return(f'Conv1d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias is not None})')
 
     def forward(self, x):
 
@@ -42,10 +45,10 @@ class Conv1d(Module):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         # convolution operation
-        out = self.graph.conv1d(x, self.K, self.stride, self.padding)
+        out = self.graph.conv1d(x, self.weight, self.stride, self.padding)
 
-        if self.bias:   # adding bias
-            out = out + self.b
+        if self.bias is not None:   # adding bias
+            out = out + self.bias
 
         return out
 
@@ -74,12 +77,15 @@ class Conv2d(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / (self.in_channels * self.kernel_size[0] * self.kernel_size[1]))
-        self.K = Parameter((self.out_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
-        self.b = Parameter((1, self.out_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.weight = Parameter((self.out_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        if self.bias:
+            self.bias = Parameter((1, self.out_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        else:
+            self.bias = None
 
     def __repr__(self):
         return(f'Conv2d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, bias={self.bias is not None})')
 
     def forward(self, x):
 
@@ -87,10 +93,10 @@ class Conv2d(Module):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         # convolution operation
-        out = self.graph.conv2d(x, self.K, self.stride, self.padding)
+        out = self.graph.conv2d(x, self.weight, self.stride, self.padding)
 
-        if self.bias:   # adding bias
-            out = out + self.b
+        if self.bias is not None:   # adding bias
+            out = out + self.bias
 
         return out
 
@@ -122,12 +128,15 @@ class ConvTranspose2d(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / (self.out_channels * self.kernel_size[0] * self.kernel_size[1]))
-        self.K = Parameter((self.in_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
-        self.b = Parameter((1, self.out_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        self.weight = Parameter((self.in_channels, *self.filter_size), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        if self.bias:
+            self.bias = Parameter((1, self.out_channels, 1, 1), uniform=True, low=-root_k, high=root_k, graph=self.graph)
+        else:
+            self.bias = None
 
     def __repr__(self):
         return(f'ConvTranspose2d(in_channels={self.in_channels}, out_channels={self.out_channels},\n \tkernel_size={self.kernel_size}, \
-               stride={self.stride},\n \tpadding={self.padding}, output_padding={self.output_padding}, bias={self.bias})')
+               stride={self.stride},\n \tpadding={self.padding}, output_padding={self.output_padding}, bias={self.bias is not None})')
 
     def forward(self, x):
 
@@ -135,9 +144,9 @@ class ConvTranspose2d(Module):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         # convolution transpose operation
-        out = self.graph.conv_transpose2d(x, self.K, self.stride, self.padding, self.output_padding)
+        out = self.graph.conv_transpose2d(x, self.weight, self.stride, self.padding, self.output_padding)
 
-        if self.bias:   # adding bias
-            out = out + self.b
+        if self.bias is not None:   # adding bias
+            out = out + self.bias
 
         return out

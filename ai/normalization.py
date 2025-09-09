@@ -19,8 +19,8 @@ class BatchNorm2d(Module):
         # In BatchNorm2d, the input is assumed to be of shape (N, C, H, W), where input is a mini-batch images of size N
         # we normalize across the channel axis C
         shape = (1, self.num_channels, 1, 1)
-        self.gamma = Parameter(shape, init_ones=True, graph=self.graph)
-        self.beta = Parameter(shape, init_zeros=True, graph=self.graph)
+        self.weight = Parameter(shape, init_ones=True, graph=self.graph)     # gamma
+        self.bias = Parameter(shape, init_zeros=True, graph=self.graph)     # beta
         self.m = Parameter(shape, init_zeros=True, requires_grad=False, graph=self.graph)     # moving mean - not trainable
         self.v = Parameter(shape, init_ones=True, requires_grad=False, graph=self.graph)      # moving variance - not trainable
 
@@ -59,8 +59,8 @@ class BatchNorm2d(Module):
             normalized = Parameter(data=normalized, requires_grad=False, graph=self.graph)
 
         # scale and shift
-        out = normalized * self.gamma    # scale
-        out = out + self.beta    # shift
+        out = normalized * self.weight    # scale
+        out = out + self.bias    # shift
 
         return out
 
@@ -81,8 +81,8 @@ class LayerNorm(Module):
     def init_params(self):
         # we normalize the input over the dimesnsions in normalized_shape(matched from the last dim)
         # example: normalized_shape = (T, C), input shape = (N, T, C), we normalize over T and C element wise
-        self.gamma = Parameter(self.normalized_shape, init_ones=True, graph=self.graph)
-        self.beta = Parameter(self.normalized_shape, init_zeros=True, graph=self.graph)
+        self.weight = Parameter(self.normalized_shape, init_ones=True, graph=self.graph)     # gamma
+        self.bias = Parameter(self.normalized_shape, init_zeros=True, graph=self.graph)     # beta
 
     def __repr__(self):
         return(f'LayerNorm(normalized_shape={self.normalized_shape}, eps={self.eps})')
@@ -115,7 +115,7 @@ class LayerNorm(Module):
             normalized = Parameter(data=normalized, requires_grad=False, graph=self.graph)
 
         # scale and shift
-        out = normalized * self.gamma    # scale
-        out = out + self.beta    # shift
+        out = normalized * self.weight    # scale
+        out = out + self.bias    # shift
 
         return out

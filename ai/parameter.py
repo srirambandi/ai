@@ -235,3 +235,9 @@ class Parameter:
     @graph.setter
     def graph(self, graph):
         self._graph = graph
+
+    def numel(self):
+        if self.shape is not None and isinstance(self.shape, tuple):
+            return int(np.prod(list(self.shape)))     # covers scalar case as well, cause np.prod([]) is 1
+        else:
+            raise ValueError(f"Value error with shape: {self.shape}")

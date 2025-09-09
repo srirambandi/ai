@@ -15,7 +15,7 @@ class Embedding(Module):
         self.init_params()
 
     def init_params(self):
-        self.embedding_table = Parameter(shape=(self.num_embeddings, self.embedding_dim))
+        self.weight = Parameter(shape=(self.num_embeddings, self.embedding_dim))
 
     def __repr__(self):
         return(f'Embedding(num_embeddings={self.num_embeddings}, embedding_dim={self.embedding_dim})')
@@ -36,7 +36,7 @@ class Embedding(Module):
 
         mask = Parameter(data=mask, requires_grad=False)
 
-        emb = self.embedding_table.reshape((1, 1, self.num_embeddings, self.embedding_dim))   # (1, 1, num_embeddings, embedding_dim)
+        emb = self.weight.reshape((1, 1, self.num_embeddings, self.embedding_dim))   # (1, 1, num_embeddings, embedding_dim)
         embeddings = (emb * mask).sum(axis=2)  # (B, L, embedding_dim)
 
         return embeddings

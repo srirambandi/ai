@@ -17,12 +17,14 @@ class Linear(Module):
 
     def init_params(self):
         root_k = np.sqrt(1. / self.in_features)
-        self.W = Parameter((self.out_features, self.in_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
+        self.weight = Parameter((self.out_features, self.in_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)  # weight volume
         if self.bias:
-            self.b = Parameter((1, self.out_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
+            self.bias = Parameter((1, self.out_features), uniform=True, low=-root_k, high=root_k, graph=self.graph)   # bias vector
+        else:
+            self.bias = None
 
     def __repr__(self):
-        return(f'Linear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias})')
+        return(f'Linear(in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None})')
 
     def forward(self, x):
         # making the input compatible with graph operations
@@ -30,9 +32,9 @@ class Linear(Module):
             x = Parameter(data=x, requires_grad=False, graph=self.graph)
 
         # y = x @ W.T + b
-        out = x @ self.W.transpose() # matmul
+        out = x @ self.weight.transpose() # matmul
 
-        if self.bias:   # adding bias
-            out = out + self.b
+        if self.bias is not None:   # adding bias
+            out = out + self.bias
 
         return out
