@@ -91,7 +91,17 @@ class Parameter:
         # assign gradient
         if gradient is not None:
             if not isinstance(gradient, np.ndarray):
-                gradient = np.array(gradient)
+                assert isinstance(gradient, (int, float)), f'gradient can be a numpy array or int or float, got {type(gradient)}.'
+                gradient = np.full_like(float(gradient))    # we only want grad and data to be of float dtype
+            elif isinstance(gradient, np.ndarray):
+                assert gradient.shape == self.shape, f"need gradient's shape: {gradient.shape} to be equal to the Parameter shape: {self.shape}."
+                assert gradient.dtype == float, f'need gradient type to be of float, got {gradient.dtype} instead.'
+            self.grad = gradient
+        else:
+            assert self.numel() == 1, f'gradient can be implicitly created only for scalar outputs.'
+            # dl/dl = 1.0
+            # rate of change of scalar w.r.t. itself is 1.0
+            gradient = np.ones_like(self.data)
             self.grad = gradient
 
         if to is None:  
@@ -114,7 +124,7 @@ class Parameter:
     
     def _check_and_update_other(self, other):
         if not isinstance(other, Parameter):
-            if isinstance(other, int) or isinstance(other, float):
+            if isinstance(other, (int, float)):
                 constant = np.empty(self._shape)
                 constant.fill(float(other))
                 other = constant
