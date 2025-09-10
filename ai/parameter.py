@@ -110,7 +110,7 @@ class Parameter:
             to_node_id = to.node_id + 1  # execute backward  to just before this node
 
         for node in reversed(self._graph.nodes[to_node_id:self._node_id + 1]):
-            node['backprop_op']()       # executing the back-propagation operation
+            node.backward_op()       # executing the back-propagation operation
 
     def __getitem__(self, key):
 

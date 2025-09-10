@@ -1,8 +1,18 @@
 import numpy as np
 import ai.parameter
 
-from typing import Callable, List
+from typing import Callable, List, TYPE_CHECKING
 from dataclasses import dataclass
+if TYPE_CHECKING:
+        from ai.parameter import Parameter
+
+
+@dataclass
+class ComputationalGraphNode:
+    op: str
+    inputs: List["Parameter"]
+    outputs: List["Parameter"]
+    backward_op: Callable
 
 
 # Computational Graph wannabe: stores the backward operation for every
@@ -10,7 +20,7 @@ from dataclasses import dataclass
 class ComputationalGraph:
     def __init__(self, grad_mode=True):
         self.grad_mode = grad_mode
-        self.nodes = list()
+        self.nodes: List[ComputationalGraphNode] = list()
 
     # functions required for deep learning models and their respective backward operations
     def dot(self, x, y):    # dot op is alias for matmul, keeping it here to support old code
@@ -67,7 +77,7 @@ class ComputationalGraph:
                     y.grad += np.matmul(np.swapaxes(x_data, -1, -2), grad).reshape(y.shape)
                     
 
-            node = {'func': '@', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='@', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -92,7 +102,7 @@ class ComputationalGraph:
                         y_grad = np.reshape(y_grad, y.shape)
                     y.grad += y_grad
 
-            node = {'func': '+', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='+', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -117,7 +127,7 @@ class ComputationalGraph:
                         y_grad = np.reshape(y_grad, y.shape)
                     y.grad -= y_grad
 
-            node = {'func': '-', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='-', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -142,7 +152,7 @@ class ComputationalGraph:
                         y_grad = np.reshape(y_grad, y.shape)
                     y.grad += y_grad
 
-            node = {'func': '*', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='*', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -167,7 +177,7 @@ class ComputationalGraph:
                         y_grad = np.reshape(y_grad, y.shape)
                     y.grad += y_grad
 
-            node = {'func': '/', 'inputs': [x, y], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='/', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -182,7 +192,7 @@ class ComputationalGraph:
                 if h.requires_grad:
                     h.grad += out.grad
 
-            node = {'func': 'sum', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='sum', inputs=[h], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -205,6 +215,7 @@ class ComputationalGraph:
                         h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-8, exp - 1))
 
             node = {'func': '^{}'.format(exp), 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op=f'^{exp}', inputs=[h], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -218,7 +229,7 @@ class ComputationalGraph:
                 if h.requires_grad:
                     h.grad += np.multiply(out.grad, np.divide(1.0, h.data + 1e-8))
 
-            node = {'func': 'log', 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='log', inputs=[h], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -278,7 +289,7 @@ class ComputationalGraph:
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
                     x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0]]
 
-            node = {'func': 'conv1d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='conv1d', inputs=[x, K], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -339,7 +350,7 @@ class ComputationalGraph:
                     # and updating the gradient of actual input feature map(non-padded) - unpadding and updating
                     x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0], p[1]:pad_x_grad.shape[3]-p[1]]
 
-            node = {'func': 'conv2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='conv2d', inputs=[x, K], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -404,7 +415,7 @@ class ComputationalGraph:
                     # (N, i, i, F) -> (N, F, i, i)
                     x.grad += np.transpose(grad_x, (0, 3, 1, 2))
 
-            node = {'func': 'conv_transpose2d', 'inputs': [x, K], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='conv_transpose2d', inputs=[x, K], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -464,7 +475,7 @@ class ComputationalGraph:
                     # and updating the gradient of actual input(non-padded) - unpadding and updating
                     x.grad += pad_x_grad[:, :, p[0]:pad_x_grad.shape[2]-p[0], p[1]:pad_x_grad.shape[3]-p[1]]
 
-            node = {'func': 'maxpool', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='maxpool', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -491,7 +502,7 @@ class ComputationalGraph:
                 if x.requires_grad:
                     x.grad += out.grad*dropout_mask # only activated units get gradients
 
-            node = {'func': 'dropout', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='dropout', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -507,7 +518,7 @@ class ComputationalGraph:
                     z.grad += out.grad.copy()
                     z.grad[z.data < 0] = 0
 
-            node = {'func': 'relu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='relu', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -522,7 +533,7 @@ class ComputationalGraph:
                     z.grad += out.grad.copy()
                     z.grad[z.data < 0] *= alpha
 
-            node = {'func': 'leaky_relu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='leaky_relu', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -544,7 +555,7 @@ class ComputationalGraph:
                 if z.requires_grad:
                     z.grad += 0.5 * (1 + tanh_term + x * (1 - (tanh_term * tanh_term)) * root_2_by_pi * (1. + 3 * 0.044715 * x_square))
 
-            node = {'func': 'gelu', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='gelu', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -559,7 +570,7 @@ class ComputationalGraph:
                 if z.requires_grad:
                     z.grad += np.multiply(np.multiply(out.data, 1.0 - out.data), out.grad)
 
-            node = {'func': 'sigmoid', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='sigmoid', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -625,7 +636,7 @@ class ComputationalGraph:
                         # case where the input is 2D input
                         z.grad += z_grad
 
-            node = {'func': 'softmax', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='softmax', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -639,7 +650,7 @@ class ComputationalGraph:
                 if z.requires_grad:
                     z.grad += np.multiply(1 - np.multiply(out.data, out.data), out.grad)
 
-            node = {'func': 'tanh', 'inputs': [z], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='tanh', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -661,7 +672,7 @@ class ComputationalGraph:
                 if W.requires_grad:
                     W.grad += np.concatenate(outs_grads, axis=axis)
 
-            node = {'func': 'split', 'inputs': [W], 'outputs': outs_list, 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='split', inputs=[W], outputs=outs_list, backward_op=lambda: backward())
             for out in outs_list:
                 out.node_id = len(self.nodes)
             self.nodes.append(node)
@@ -676,7 +687,7 @@ class ComputationalGraph:
                 if x.requires_grad:
                     x.grad[key] += out.grad
 
-            node = {'func': '[,]', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='[,]', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -695,7 +706,7 @@ class ComputationalGraph:
                     if inputs_list[e].requires_grad:
                         inputs_list[e].grad += input_grads[e]
 
-            node = {'func': 'cat', 'inputs': [inputs_list], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='cat', inputs=inputs_list, outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -725,7 +736,7 @@ class ComputationalGraph:
                 if x.requires_grad:
                     x.grad += np.transpose(out.grad, axes=axes)
 
-            node = {'func': 'x.T', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='x.T', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 
@@ -741,7 +752,7 @@ class ComputationalGraph:
                 if x.requires_grad:
                     x.grad += np.ascontiguousarray(out.grad).reshape(old_shape)
 
-            node = {'func': 'reshape', 'inputs': [x], 'outputs': [out], 'backprop_op': lambda: backward()}
+            node = ComputationalGraphNode(op='reshape', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
             self.nodes.append(node)
 

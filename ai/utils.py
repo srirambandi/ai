@@ -14,29 +14,29 @@ def draw_graph(filename=None, format='svg', graph=G):
     for cell in graph.nodes:
 
         # add the op to nodes
-        dot.node(name=str(id(cell['backprop_op'])), label=cell['func'], shape='doublecircle',)
+        dot.node(name=str(id(cell.backward_op)), label=cell.op, shape='doublecircle',)
 
-        for input in cell['inputs']:
+        for input in cell.inputs:
 
             # add the input to nodes
             color = None if input.requires_grad else 'red'
             dot.node(name=str(id(input)), label='{}'.format(input.node_id), shape='circle', color=color)
             # forward pass edge from input to op
-            dot.edge(str(id(input)), str(id(cell['backprop_op'])))
+            dot.edge(str(id(input)), str(id(cell.backward_op)))
 
             # # backprop pass edge from op to input
             # if input.requires_grad:
-            #     dot.edge(str(id(cell['backprop_op'])), str(id(input)), color='red')
+            #     dot.edge(str(id(cell.backward_op)), str(id(input)), color='red')
 
-        for output in cell['outputs']:
+        for output in cell.outputs:
 
             # add the output to nodes
             dot.node(name=str(id(output)), label='{}'.format(output.node_id), shape='circle')
             # forward pass edge from op to output
-            dot.edge(str(id(cell['backprop_op'])), str(id(output)))
+            dot.edge(str(id(cell.backward_op)), str(id(output)))
 
             # # backward pass edge from output to op
-            # dot.edge(str(id(output)), str(id(cell['backprop_op'])), color='red')
+            # dot.edge(str(id(output)), str(id(cell.backward_op)), color='red')
 
     dot.render(format=format, filename=filename, directory='assets', cleanup=True)
 
