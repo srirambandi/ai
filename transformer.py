@@ -108,10 +108,11 @@ class Transformer(ai.Module):
         self.wpe = ai.Embedding(config.vocab_size, config.d_model)
         self.dropout = ai.Dropout(config.dropout)
         for tl in range(len(config.num_layer)):
-            setattr(f"layer_{tl}", TransformerLayer(config))
+            setattr(f"tl_{tl}", TransformerLayer(config))
         self.ln_f = ai.LayerNorm(config.d_model)
         self.lm_head = ai.Linear(config.d_model, config.vocab_size)
-        # weight tying: https://paperswithcode.com/method/weight-tying
+        # weight tying: https://arxiv.org/abs/1608.05859
+        # also this interesting reddit post: https://www.reddit.com/r/MachineLearning/comments/1eqm0lr/r_why_and_when_tying_embedding_a_story/
         self.wte.embedding_table = self.lm_head.W
         self.loss = ai.CrossEntropyLoss()
 
@@ -125,16 +126,21 @@ class Transformer(ai.Module):
         x = tok_emb + pos_emb
         x = self.dropout(x)
         for tl in range(len(config.num_layer)):
-            x = getattr(f"layer_{tl}")(x)
+            x = getattr(f"tl_{tl}")(x)
         x = self.ln_f(x)
 
         if targets is not None:
-            # training time - compute loss
+            # training - compute loss
             logits = self.lm_head(x)
-            #TODO: do the loss properly
+            targets_one_hot = np.zeros((B, T, self.config.vocab_size))
+            batch_idxs, time_idxs = np.indices((B, T))
+            # numpy advanced indexing for efficiency
+            targets_one_hot[batch_idxs, time_idxs, targets] = 1.
+            targets_one_hot = ai.Parameter(data=targets_one_hot.reshape(B*T, self.config.vocab_size), requires_grad=False)
+            loss = self.loss(logits.reshape(B*T, self.config.vocab_size), targets_one_hot)
         else:
-            # inference time
-            logits = self.lm_head(x)
+            # inference - only the last position is forwarded through the lm_head
+            logits = self.lm_head(x[:, [-1], :])
             loss = None
 
         return logits, loss

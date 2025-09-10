@@ -28,11 +28,11 @@ class Embedding(Module):
         # let's only deal with inputs that don't need training as is required in most cases
         assert not x.requires_grad, "Embedding only takes in Parameter with no training requirement."
 
-        B, L = x.shape
-        mask = np.zeros((B, L, self.num_embeddings, self.embedding_dim))
+        B, T = x.shape
+        mask = np.zeros((B, T, self.num_embeddings, self.embedding_dim))
         B_idx = np.arange(B)[:, None]
-        L_idx = np.arange(L)
-        mask[B_idx, L_idx, x, :] = 1.0
+        L_idx = np.arange(T)
+        mask[B_idx, L_idx, x.data, :] = 1.0
 
         mask = Parameter(data=mask, requires_grad=False)
 

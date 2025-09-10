@@ -179,7 +179,7 @@ class Parameter:
     def data(self, data):
         assert data is not None, "can't assign None to data"
         assert isinstance(data, np.ndarray), f"can't assign data of type {type(data)}."
-        assert data.shapa == self._shape, f"can't assign data of shape {data.shape} to Parameter of shape {self._shape}"
+        assert data.shape == self._shape, f"can't assign data of shape {data.shape} to Parameter of shape {self._shape}"
 
         self._data = data
 
@@ -191,7 +191,7 @@ class Parameter:
     def grad(self, grad):
         assert grad is not None, "can't assign None to grad"
         assert isinstance(grad, np.ndarray), f"can't assign grad of type {type(grad)}."
-        assert grad.shapa == self._shape, f"can't assign grad of shape {grad.shape} to Parameter of shape {self._shape}"
+        assert grad.shape == self._shape, f"can't assign grad of shape {grad.shape} to Parameter of shape {self._shape}"
 
         self._grad = grad
 
