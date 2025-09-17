@@ -1,3 +1,4 @@
+import asyncio
 import numpy as np
 from ai.graph import G
 
@@ -47,3 +48,25 @@ def clip_grad_value(parameters, clip_value):
     for p in parameters:
         # clip gradients by value
         p.grad = np.clip(p.grad, -clip_value, clip_value)
+
+
+# async utils from hummingbot
+# ref:  https://github.com/hummingbot/hummingbot/blob/master/hummingbot/core/utils/async_utils.py
+async def safe_wrapper(c):
+    try:
+        return await c
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        raise Exception(f"Unhandled error in background task: {str(e)}")
+
+
+def safe_ensure_future(coro, *args, **kwargs):
+    return asyncio.ensure_future(safe_wrapper(coro), *args, **kwargs)
+
+
+async def safe_gather(*args, **kwargs):
+    try:
+        return await asyncio.gather(*args, **kwargs)
+    except Exception as e:
+        raise Exception(f"Unhandled error in background task: {str(e)}")
