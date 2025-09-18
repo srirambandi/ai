@@ -5,6 +5,7 @@ https://www.youtube.com/watch?v=zduSFxRajkE
 
 
 from typing import List, Tuple
+from ai.utils import safe_ensure_future, safe_gather
 
 
 def get_pairs(tokens):
@@ -52,7 +53,14 @@ class BPETokenizer:
             it = 256 + num_of_merges + i
             self.vocab[it] = SPECIAL_TOKENS[i]
 
-    def encode(self, text: str) -> List[int]:
+    def encode(self, texts: List[str]) -> List[List[int]]:
+        tasks = []
+        for text in texts:
+            tasks.append(self._encode_single_sequence(text))
+
+        return safe_ensure_future(safe_gather(*tasks))
+
+    async def _encode_single_sequence(self, text: str) -> List[int]:
         byte_stream = text.encode('utf-8')
         tokens = list(byte_stream)
         # TODO: regex split the tokens for efficient tokenization
@@ -67,7 +75,15 @@ class BPETokenizer:
         
         return tokens
 
-    def decode(self, tokens: List[int]) -> str:
+    def decode(self, tokens_lists: List[List[int]]) -> List[str]:
+        tasks = []
+        for token_seq in tokens_lists:
+            tasks.append(self._decode_single_sequence(token_seq))
+
+        return safe_ensure_future(safe_gather(*tasks))
+
+    async def _decode_single_sequence(self, tokens: List[int]) -> str:
         tokens = b"".join(self.vocab[token] for token in tokens)
         text = tokens.decode("utf-8", errors="replace")
+
         return text
