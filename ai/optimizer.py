@@ -27,10 +27,11 @@ class Optimizer(ABC):
 
 
 class SGD(Optimizer):
-    def __init__(self, parameters, lr=0.001, momentum=0, graph=G):
+    def __init__(self, parameters, lr=0.001, momentum=0, maximize=False,graph=G):
         super().__init__(parameters, graph=graph)
         self.lr = lr    # size of the step to update the parameters
         self.momentum = momentum
+        self.maximize = maximize
         self.m = list()
         
         for parameter in self.parameters:
@@ -55,12 +56,13 @@ class SGD(Optimizer):
 
 
 class Adam(Optimizer):
-    def __init__(self, parameters, lr=0.001, beta1=0.9, beta2=0.999, eps=1e-8, graph=G):
+    def __init__(self, parameters, lr=0.001, beta1=0.9, beta2=0.999, eps=1e-8, maximize=False, graph=G):
         super().__init__(parameters, graph=graph)
         self.lr = lr
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
+        self.maximize = maximize
         self.m = list()
         self.v = list()
 
@@ -94,11 +96,12 @@ class Adam(Optimizer):
 
 
 class Adagrad(Optimizer):
-    def __init__(self, parameters, lr=0.001, eps=1e-8, graph=G):
+    def __init__(self, parameters, lr=0.001, eps=1e-8, maximize=False, graph=G):
         super().__init__(parameters, graph=graph)
         self.lr = lr
         self.eps = eps
-        self.grad_square
+        self.maximize = maximize
+        self.grad_square = []
 
         for parameter in self.parameters:
             self.grad_square.append(np.zeros(parameter.shape))
@@ -117,10 +120,11 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    def __init__(self, parameters, rho=0.95, eps=1e-8, graph=G):
+    def __init__(self, parameters, rho=0.95, eps=1e-8, maximize=False, graph=G):
         super().__init__(parameters, graph=graph)
         self.rho = rho
         self.eps = eps
+        self.maximize = maximize
         self.m = list()
         self.v = list()
 
@@ -150,11 +154,12 @@ class Adadelta(Optimizer):
 
 
 class RMSprop(Optimizer):
-    def __init__(self, parameters, lr=0.01, alpha=0.99, eps=1e-8, graph=G):
+    def __init__(self, parameters, lr=0.01, alpha=0.99, eps=1e-8, maximize=False,graph=G):
         super().__init__(parameters, graph=graph)
         self.lr = lr
         self.alpha = alpha
         self.eps = eps
+        self.maximize = maximize
         self.v = list()
         
         for parameter in self.parameters:
