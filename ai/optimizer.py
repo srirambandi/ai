@@ -32,12 +32,12 @@ class SGD(Optimizer):
         self.lr = lr    # size of the step to update the parameters
         self.momentum = momentum
         self.maximize = maximize
-        self.m = None
+        self.v = None
         
         if self.momentum > 0.0:
-            self.m = []
+            self.v = []
             for parameter in self.parameters:
-                self.m.append(np.zeros_like(parameter.data))
+                self.v.append(np.zeros_like(parameter.data))
 
     def __repr__(self):
         return(f'SGD(lr={self.lr}, momentum={self.momentum}), maximize={self.maximize})')
@@ -49,17 +49,16 @@ class SGD(Optimizer):
                 continue    # probably a non-trainable parameter, like a frozen layer
 
             # gradient ascent if objective is to maximize
-            sign = 1.0 if not self.maximize else -1.0
+            grad = self.parameters[p].grad if not self.maximize else -1.0 * self.parameters[p].grad
+
             if self.momentum > 0.0:
                 # momentum update
-                self.m[p] = self.momentum * self.m[p] - self.lr * (sign * self.parameters[p].grad)
+                self.v[p] = self.momentum * self.v[p] + grad
 
-                # Update parameters with momentum SGD
-                self.parameters[p].data += self.m[p]
+                grad = self.v[p]
 
-            else:
-                # Update parameters with vanilla SGD
-                self.parameters[p].data -= self.lr * (sign * self.parameters[p].grad)
+            # Update parameters
+            self.parameters[p].data -= self.lr * grad
 
 
 class Adam(Optimizer):
