@@ -185,10 +185,16 @@ class RMSprop(Optimizer):
 
         for p in range(len(self.parameters)):
 
+            if self.parameters[p].grad is None:
+                continue    # probably a non-trainable parameter, like a frozen layer
+
+            # gradient ascent if objective is to maximize
+            grad = self.parameters[p].grad if not self.maximize else -1.0 * self.parameters[p].grad
+
             # Accumulating moving average of the square of the Gradient:
-            self.v[p] = self.alpha * self.v[p] + (1 - self.alpha) * self.parameters[p].grad * self.parameters[p].grad
+            self.v[p] = self.alpha * self.v[p] + (1 - self.alpha) * grad * grad
 
             # Apply Update:
-            self.parameters[p].data -= self.lr * self.parameters[p].grad / (np.sqrt(self.v[p]) + self.eps)
+            self.parameters[p].data -= self.lr * grad / (np.sqrt(self.v[p]) + self.eps)
 
 #define optimizers
