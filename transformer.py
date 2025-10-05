@@ -1,5 +1,5 @@
 """
-Vanilla Transformer model implemntation using this AI library
+Transformer model implemntation using this AI library
 
 Author: Sri Ram Bandi (srirambandi.654@gmail.com)
         https://www.github.com/srirambandi

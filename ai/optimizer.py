@@ -35,7 +35,7 @@ class SGD(Optimizer):
         self.v = None
         
         if self.momentum > 0.0:
-            self.v = []
+            self.v = list()
             for parameter in self.parameters:
                 self.v.append(np.zeros_like(parameter.data))
 
@@ -85,11 +85,17 @@ class Adam(Optimizer):
         self.t += 1
         for p in range(len(self.parameters)):
 
+            if self.parameters[p].grad is None:
+                continue    # probably a non-trainable parameter, like a frozen layer
+
+            # gradient ascent if objective is to maximize
+            grad = self.parameters[p].grad if not self.maximize else -1.0 * self.parameters[p].grad
+
             # Update biased first moment estimate
-            self.m[p] = self.beta1 * self.m[p] + (1 - self.beta1) * self.parameters[p].grad
+            self.m[p] = self.beta1 * self.m[p] + (1 - self.beta1) * grad
 
             # Update biased second raw moment estimate
-            self.v[p] = self.beta2 * self.v[p] + (1 - self.beta2) * self.parameters[p].grad * self.parameters[p].grad
+            self.v[p] = self.beta2 * self.v[p] + (1 - self.beta2) * grad * grad
 
             # (Compute bias-corrected first moment estimate
             m_cap = self.m[p] / (1 - np.power(self.beta1, self.t))
