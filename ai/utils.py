@@ -50,13 +50,11 @@ def clip_grad_value(parameters, clip_value):
         p.grad = np.clip(p.grad, -clip_value, clip_value)
 
 
-# async utils from hummingbot
+# asynchronous function calling utils
 # ref:  https://github.com/hummingbot/hummingbot/blob/master/hummingbot/core/utils/async_utils.py
 async def safe_wrapper(c):
     try:
         return await c
-    except asyncio.CancelledError:
-        raise
     except Exception as e:
         raise Exception(f"Unhandled error in background task: {str(e)}")
 
