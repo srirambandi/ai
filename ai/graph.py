@@ -483,19 +483,18 @@ class ComputationalGraph:
 
     def dropout(self, x, p=0.5):    # dropout regularization layer!
         # useful: https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
+        # we are using the modern inverted dropout here.
 
         if self.grad_mode:
-            # drop activation units randomly during training
-            # a unit is present with probability p
-            dropout_mask = np.random.binomial(np.ones(x.shape, dtype='int64'), p)
+            # drop activation units randomly during training - a unit is present with probability p
+            # scale the rest by 1 / (1 - p), so the total expected activation stays the same
+            dropout_mask = (1. / (1. - p)) * np.random.binomial(np.ones(x.shape), p)
+            # drop/sclae
+            out = ai.parameter.Parameter(data=dropout_mask*x.data, graph=self)
 
         else:
-            # scale activations of units by p during testing
-            # units are always present
-            dropout_mask = p
-
-        # drop/sclae
-        out = ai.parameter.Parameter(data=dropout_mask*x.data, graph=self)
+            # do nothing during the inference
+            out = ai.parameter.Parameter(data=x.data, graph=self)
 
         if self.grad_mode:
             def backward():
