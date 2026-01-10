@@ -71,11 +71,23 @@ class ComputationalGraph:
                         grad = grad.reshape(-1, 1)  # (n) -> (n, 1)
                 elif grad.ndim == 0:
                     grad = np.array([[grad]])   # () -> (1, 1)
-                
+
+                def _sum_to_shape(grad, shape):
+                    while grad.ndim > len(shape):
+                        grad = grad.sum(axis=0)
+                    for axis, (g_dim, s_dim) in enumerate(zip(grad.shape, shape)):
+                        if s_dim == 1 and g_dim != 1:
+                            grad = grad.sum(axis=axis, keepdims=True)
+                    return grad
+
                 if x.requires_grad:
-                    x.grad += np.matmul(grad, np.swapaxes(y_data, -1, -2)).reshape(x.shape)
+                    grad_x = np.matmul(grad, np.swapaxes(y_data, -1, -2))
+                    grad_x = _sum_to_shape(grad_x, x_data.shape).reshape(x.shape)
+                    x.grad += grad_x
                 if y.requires_grad:
-                    y.grad += np.matmul(np.swapaxes(x_data, -1, -2), grad).reshape(y.shape)
+                    grad_y = np.matmul(np.swapaxes(x_data, -1, -2), grad)
+                    grad_y = _sum_to_shape(grad_y, y_data.shape).reshape(y.shape)
+                    y.grad += grad_y
                     
 
             node = ComputationalGraphNode(op='@', inputs=[x, y], outputs=[out], backward_op=lambda: backward())
@@ -163,17 +175,18 @@ class ComputationalGraph:
         # make x and y broadcastable
         x_ndim_orig, y_ndim_orig = x.ndim, y.ndim
         x_data, x_1d_axes, y_data, y_1d_axes = self.__make_broadcastable(x, y)
-        out = ai.parameter.Parameter(data=np.divide(x_data, y_data + eps), graph=self)
+        denom = y_data if eps is None else np.where(y_data == 0, y_data + eps, y_data)
+        out = ai.parameter.Parameter(data=np.divide(x_data, denom), graph=self)
 
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x_grad = np.sum(np.divide(out.grad, y_data + eps), axis=x_1d_axes, keepdims=True)
+                    x_grad = np.sum(np.divide(out.grad, denom), axis=x_1d_axes, keepdims=True)
                     if x_ndim_orig < y_ndim_orig:
                         x_grad = np.reshape(x_grad, x.shape)
                     x.grad += x_grad
                 if y.requires_grad:
-                    y_grad = np.sum(-np.multiply(out.grad, x_data / np.square(y_data + eps)), axis=y_1d_axes, keepdims=True)
+                    y_grad = np.sum(-np.multiply(out.grad, x_data / np.square(denom)), axis=y_1d_axes, keepdims=True)
                     if y_ndim_orig < x_ndim_orig:
                         y_grad = np.reshape(y_grad, y.shape)
                     y.grad += y_grad
@@ -204,16 +217,17 @@ class ComputationalGraph:
 
     def power(self, h, exp):   # element wise power
         assert isinstance(exp, int) or isinstance(exp, float), "power operation only supports int or float raises for now."
-        out = np.power(h.data, exp) if exp >= 0 else np.power(h.data + 1e-8, exp)     # numerical stability for -ve power
+        if exp >= 0:
+            base = h.data
+        else:
+            base = np.where(h.data == 0, h.data + 1e-8, h.data)
+        out = np.power(base, exp)
         out = ai.parameter.Parameter(data=out, graph=self)
 
         if self.grad_mode:
             def backward():
                 if h.requires_grad:
-                    if exp  >= 0:
-                        h.grad += np.multiply(out.grad, exp * np.power(h.data, exp - 1))
-                    else:
-                        h.grad += np.multiply(out.grad, exp * np.power(h.data + 1e-8, exp - 1))
+                    h.grad += np.multiply(out.grad, exp * np.power(base, exp - 1))
 
             node = {'func': '^{}'.format(exp), 'inputs': [h], 'outputs': [out], 'backprop_op': lambda: backward()}
             node = ComputationalGraphNode(op=f'^{exp}', inputs=[h], outputs=[out], backward_op=lambda: backward())
@@ -223,12 +237,13 @@ class ComputationalGraph:
         return out
 
     def log(self, h):   # element wise logarithm
-        out = ai.parameter.Parameter(data=np.log(h.data + 1e-8), graph=self)     # numerical stability for values ~0
+        safe_data = np.where(h.data == 0, h.data + 1e-8, h.data)
+        out = ai.parameter.Parameter(data=np.log(safe_data), graph=self)
 
         if self.grad_mode:
             def backward():
                 if h.requires_grad:
-                    h.grad += np.multiply(out.grad, np.divide(1.0, h.data + 1e-8))
+                    h.grad += np.multiply(out.grad, np.divide(1.0, safe_data))
 
             node = ComputationalGraphNode(op='log', inputs=[h], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
@@ -454,8 +469,10 @@ class ComputationalGraph:
         strided_x_col = strided_x.reshape(N, F, *o, k[0] * k[1])
 
         out = np.max(strided_x_col, axis=-1)
-        max_mask = (strided_x_col - out[..., np.newaxis]).reshape(shape)
-        max_mask = np.where(max_mask == 0, 1.0, 0)
+        max_indices = np.argmax(strided_x_col, axis=-1)
+        max_mask = np.zeros_like(strided_x_col)
+        np.put_along_axis(max_mask, max_indices[..., np.newaxis], 1.0, axis=-1)
+        max_mask = max_mask.reshape(shape)
 
         out = ai.parameter.Parameter(data=out, graph=self)
 
