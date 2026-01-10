@@ -601,10 +601,7 @@ class ComputationalGraph:
         shape = z.shape
         if axis < 0:
             axis += z.ndim
-        assert axis in [1, 2] and axis < len(z.shape), 'Invalid axis for softmax'
-        assert len(shape) in [2, 3], 'Invalid shape for softmax'
-        is_1d = len(shape) == 2 # if 1D, then axis=1, 0th axis is batch size
-        
+        assert 0 <= axis < len(shape), 'Invalid axis for softmax'
         # Subtracting the max for numerical stability
         e_z = np.exp(z.data - np.max(z.data, axis=axis, keepdims=True))
 
@@ -619,43 +616,8 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 if z.requires_grad:
-                    # >>> Old Implementation, which assumes that the gradient of the loss wrt the softmax output is 1
-                    # >>> and doesn't handle softmx of multidimensional arrays
-                    # # directly coding the end result instead of formula - easy this way
-                    # z.grad += out.data - np.where(out.grad == 0, 0, 1.0)
-
-                    # >>> New Implementation, which implements for a general case where the gradient of the loss wrt the softmax output
-                    # >>> is not necessarily 1, and handles softmx of multidimensional arrays
-                    if is_1d:
-                        # making 1D softmax gradient calculation consistent with the 2D implementation
-                        # by reshaping the output and gradient tensors to 2D + batch size, and then reshaping the gradient back
-                        out_data = np.expand_dims(out.data, axis=len(shape))   # adding new dim at the end
-                        out_grad = np.expand_dims(out.grad, axis=len(shape))  # adding new dim at the end
-                    else:
-                        out_data = out.data
-                        out_grad = out.grad
-                    out_i = np.expand_dims(out_data, axis=axis + 1)
-                    out_j = np.expand_dims(out_data, axis=axis)
-
-                    jacobian = -out_i * out_j  # For i != j
-                    ii_indices = np.arange(out.data.shape[axis])
-                    # Adding the diagonal part of the jacobian
-                    if axis == 1:
-                        jacobian[:, ii_indices, ii_indices, :] = out_data * (1 - out_data)
-                    elif axis == 2:
-                        jacobian[:, :, ii_indices, ii_indices] = out_data * (1 - out_data)
-
-                    # Now, apply this jacobian to grad_out
-                    grad_out_expanded = np.expand_dims(out_grad, axis=axis + 1)  # Expanding dims for correct broadcasting
-                    jacobian_prod = jacobian * grad_out_expanded
-                    z_grad = np.sum(jacobian_prod, axis=axis)  # Sum over the softmax dimension
-
-                    if is_1d:
-                        # the last axis is the one we added, it is of size 1, so we remove it
-                        z.grad += z_grad.squeeze(axis=len(shape))
-                    else:
-                        # case where the input is 2D input
-                        z.grad += z_grad
+                    softmax_grad_dot = np.sum(out.grad * out.data, axis=axis, keepdims=True)
+                    z.grad += out.data * (out.grad - softmax_grad_dot)
 
             node = ComputationalGraphNode(op='softmax', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
