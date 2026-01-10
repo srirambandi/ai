@@ -3,8 +3,9 @@ import ai.parameter
 
 from typing import Callable, List, TYPE_CHECKING
 from dataclasses import dataclass
+
 if TYPE_CHECKING:
-        from ai.parameter import Parameter
+    from ai.parameter import Parameter
 
 
 @dataclass
@@ -484,13 +485,17 @@ class ComputationalGraph:
     def dropout(self, x, p=0.5):    # dropout regularization layer!
         # useful: https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
         # we are using the modern inverted dropout here.
+        assert p >= 0 and p <= 1.0, f'Invalud probability for dropout. p={p}'
 
         if self.grad_mode:
-            # drop activation units randomly during training - a unit is present with probability p
+            # drop activation units randomly during training - a unit is dropped with probability p
             # scale the rest by 1 / (1 - p), so the total expected activation stays the same
-            dropout_mask = (1. / (1. - p)) * np.random.binomial(np.ones(x.shape), p)
+            if p == 1.0:
+                dropout_mask = np.zeros(x.shape)
+            else:
+                dropout_mask = (1. / (1. - p)) * np.random.binomial(1, 1.0 - p, size=x.shape)
             # drop/sclae
-            out = ai.parameter.Parameter(data=dropout_mask*x.data, graph=self)
+            out = ai.parameter.Parameter(data=x.data * dropout_mask, graph=self)
 
         else:
             # do nothing during the inference
@@ -499,7 +504,7 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 if x.requires_grad:
-                    x.grad += out.grad*dropout_mask # only activated units get gradients
+                    x.grad += out.grad * dropout_mask # only activated units get gradients
 
             node = ComputationalGraphNode(op='dropout', inputs=[x], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
@@ -696,7 +701,8 @@ class ComputationalGraph:
         if axis < 0:
             axis += inputs_list[0].ndim
         split_points = np.cumsum([i.shape[axis] for i in inputs_list[:-1]])
-        out = ai.parameter.Parameter(data=np.concatenate(inputs_list, axis=axis), graph=self)
+        out_data = np.concatenate([i.data for i in inputs_list], axis=axis)
+        out = ai.parameter.Parameter(data=out_data, graph=self)
 
         if self.grad_mode:
             def backward():
@@ -766,9 +772,9 @@ class ComputationalGraph:
         y_data = y.data
 
         if x_ndim_orig < y_ndim_orig:
-            x_data = x_data.reshape(*[1 for _ in range(len(y_ndim_orig - x_ndim_orig))], *x_shape)
+            x_data = x_data.reshape(*[1 for _ in range(y_ndim_orig - x_ndim_orig)], *x_shape)
         elif y_ndim_orig < x_ndim_orig:
-            y_data = y_data.reshape(*[1 for _ in range(len(x_ndim_orig - y_ndim_orig))], *y_shape)
+            y_data = y_data.reshape(*[1 for _ in range(x_ndim_orig - y_ndim_orig)], *y_shape)
 
         # assert if broadcastable still
         broadcastable = True
