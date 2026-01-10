@@ -574,7 +574,8 @@ class ComputationalGraph:
         if self.grad_mode:
             def backward():
                 if z.requires_grad:
-                    z.grad += 0.5 * (1 + tanh_term + x * (1 - (tanh_term * tanh_term)) * root_2_by_pi * (1. + 3 * 0.044715 * x_square))
+                    gelu_grad = 0.5 * (1 + tanh_term + x * (1 - (tanh_term * tanh_term)) * root_2_by_pi * (1. + 3 * 0.044715 * x_square))
+                    z.grad += out.grad * gelu_grad
 
             node = ComputationalGraphNode(op='gelu', inputs=[z], outputs=[out], backward_op=lambda: backward())
             out.node_id = len(self.nodes)
