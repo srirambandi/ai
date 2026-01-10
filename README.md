@@ -1,6 +1,6 @@
 # import ai
 
-AI library in python using numpy, with end-to-end reverse auto-differentiable Computational Graph. Implements general Deep Learning library components with the end API similar to that of Pytorch.
+AI library in python using numpy, with end-to-end reverse auto-differentiable Computational Graph. Implements general Deep Learning library components with the end API similar to that of PyTorch.
 
 ### About
 
