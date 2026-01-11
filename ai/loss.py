@@ -20,12 +20,14 @@ class MSELoss(Module):
     def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
+            y_true = Parameter(data=np.array(y_true, dtype=float), requires_grad=False, graph=self.graph)
+        elif y_true.data.dtype != float:
+            y_true = Parameter(data=np.array(y_true.data, dtype=float), requires_grad=False, graph=self.graph)
 
         # L = (y_out - y_true)^2
         l = self.graph.sum(self.graph.power((y_out - y_true), 2))
-        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
-        l = l / float(y_true.shape[0])
+        # avg_loss = (1/(B * D)) * sigma{i = 1,..,B}(loss[i])
+        l = l / float(y_true.numel())
 
         return l
 
@@ -41,11 +43,15 @@ class CrossEntropyLoss(Module):
     def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
+            y_true = Parameter(data=np.array(y_true, dtype=float), requires_grad=False, graph=self.graph)
+        elif y_true.data.dtype != float:
+            y_true = Parameter(data=np.array(y_true.data, dtype=float), requires_grad=False, graph=self.graph)
 
-        # KL(P || Q): Summation(P*log(P)){result: 0} - Summation(P*log(Q))
-        l = self.graph.sum((y_true * self.graph.log(y_out))) * -1.0
-        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+        # softmax on logits
+        y_prob = self.graph.softmax(y_out, axis=-1)
+        # -Summation(t * log(p))
+        l = self.graph.sum((y_true * self.graph.log(y_prob))) * -1.0
+        # avg_loss = (1/B)*sigma{i = 1,..,B}(loss[i])
         l = l / float(y_true.shape[0])
 
         return l
@@ -55,6 +61,7 @@ class BCELoss(Module):
     def __init__(self, graph=G):
         super().__init__()
         self.graph = graph
+        self.eps = 1e-8
 
     def __repr__(self):
         return(f'BCELoss()')
@@ -62,7 +69,13 @@ class BCELoss(Module):
     def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
+            y_true = Parameter(data=np.array(y_true, dtype=float), requires_grad=False, graph=self.graph)
+        elif y_true.data.dtype != float:
+            y_true = Parameter(data=np.array(y_true.data, dtype=float), requires_grad=False, graph=self.graph)
+
+        # clamp probabilities into (eps, 1 - eps)
+        y_out = self.graph.relu(y_out - self.eps) + self.eps
+        y_out = 1.0 - self.graph.relu((1.0 - self.eps) - y_out)
 
         # class 2 output: 1 - c1
         c2 = (y_out - 1.0) * -1.0
@@ -92,17 +105,38 @@ class JSDivLoss(Module):
     def forward(self, y_out, y_true):
 
         if not isinstance(y_true, Parameter):
-            y_true = Parameter(data=y_true, requires_grad=False, graph=self.graph)
+            y_true = Parameter(data=np.array(y_true, dtype=float), requires_grad=False, graph=self.graph)
+        elif y_true.data.dtype != float:
+            y_true = Parameter(data=np.array(y_true.data, dtype=float), requires_grad=False, graph=self.graph)
 
         # mean probability: (P + Q)/2
         y_mean = (y_out + y_true) / 2.0
-        # KL(P || (P + Q)/2): Summation(P*log(P)){result: 0} - Summation(P*log((P+Q)/2))
-        kl_1 = self.graph.sum(self.graph.multiply(y_true, self.graph.log(y_mean))) * -1.0
-        # KL(Q || (P + Q)/2): Summation(Q*log(Q)) - Summation(Q*log((P+Q)/2))
-        kl_2 = self.graph.sum((y_out * (self.graph.log(y_out) - self.graph.log(y_mean))))
+        # KL(P || M)
+        kl_1 = KLDivLoss(graph=self.graph).forward(self.graph.log(y_mean), y_true)
+        # KL(Q || M)
+        kl_2 = KLDivLoss(graph=self.graph).forward(self.graph.log(y_mean), y_out)
         # JS(P, Q) = 1/2*(KL(P || (P + Q)/2) + KL(Q || (P + Q)/2))
         l = (kl_1 + kl_2) / 2.0
-        # avg_loss = (1/m)*sigma{i = 1,..,m}(loss[i])
+
+        return l
+
+
+class KLDivLoss(Module):
+    def __init__(self, graph=G):
+        super().__init__()
+        self.graph = graph
+
+    def __repr__(self):
+        return(f'KLDivLoss()')
+
+    def forward(self, y_out, y_true):
+        if not isinstance(y_true, Parameter):
+            y_true = Parameter(data=np.array(y_true, dtype=float), requires_grad=False, graph=self.graph)
+        elif y_true.data.dtype != float:
+            y_true = Parameter(data=np.array(y_true.data, dtype=float), requires_grad=False, graph=self.graph)
+
+        # KL(P || Q) = Summation(P * (log(P) - log(Q)))
+        l = self.graph.sum(y_true * (self.graph.log(y_true) - y_out))
         l = l / float(y_true.shape[0])
 
         return l
