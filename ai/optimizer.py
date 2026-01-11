@@ -15,7 +15,6 @@ class Optimizer(ABC):
     def zero_grad(self):
         # clearing out the backprop operations from the list
         self.graph.nodes = list()
-        self.graph.node_count = 0
 
         # resetting the gradients of model parameters to zero
         for parameter in self.parameters:
@@ -124,11 +123,17 @@ class Adagrad(Optimizer):
     def step(self):
         for p in range(len(self.parameters)):
 
+            if self.parameters[p].grad is None:
+                continue    # probably a non-trainable parameter, like a frozen layer
+
+            # gradient ascent if objective is to maximize
+            grad = self.parameters[p].grad if not self.maximize else -1.0 * self.parameters[p].grad
+
             # update memory
-            self.grad_square[p] += self.parameters[p].grad * self.parameters[p].grad
+            self.grad_square[p] += grad * grad
 
             # Update parameters
-            self.parameters[p].data -= self.lr * self.parameters[p].grad / np.sqrt(self.grad_square[p] + self.eps)
+            self.parameters[p].data -= self.lr * grad / np.sqrt(self.grad_square[p] + self.eps)
 
 
 class Adadelta(Optimizer):
@@ -152,11 +157,17 @@ class Adadelta(Optimizer):
 
         for p in range(len(self.parameters)):
 
+            if self.parameters[p].grad is None:
+                continue    # probably a non-trainable parameter, like a frozen layer
+
+            # gradient ascent if objective is to maximize
+            grad = self.parameters[p].grad if not self.maximize else -1.0 * self.parameters[p].grad
+
             # Accumulate Gradient:
-            self.m[p] = self.rho * self.m[p] + (1 - self.rho) * self.parameters[p].grad * self.parameters[p].grad
+            self.m[p] = self.rho * self.m[p] + (1 - self.rho) * grad * grad
 
             # Compute Update:
-            delta = -np.sqrt((self.v[p] + self.eps) / (self.m[p] + self.eps)) * self.parameters[p].grad
+            delta = -np.sqrt((self.v[p] + self.eps) / (self.m[p] + self.eps)) * grad
 
             # Accumulate Updates:
             self.v[p] = self.rho * self.v[p] + (1 - self.rho) * delta * delta
