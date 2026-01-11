@@ -123,29 +123,40 @@ class Parameter:
         return self._graph.getitem(self, new_key)
     
     def _check_and_update_other(self, other):
-        if not isinstance(other, Parameter):
-            if isinstance(other, (int, float)):
-                constant = np.empty(self._shape)
-                constant.fill(float(other))
-                other = constant
-            other = Parameter(data=other, requires_grad=False, graph=self._graph)
-        
-        return other
+        if isinstance(other, Parameter):
+            return other
+
+        if isinstance(other, (int, float, np.number)):
+            constant = np.empty(self._shape, dtype=float)
+            constant.fill(float(other))
+            other = constant
+
+        return Parameter(data=other, requires_grad=False, graph=self._graph)
 
     def __add__(self, other):
         other = self._check_and_update_other(other)
 
         return self._graph.add(self, other)
 
+    def __radd__(self, other):
+        return self.__add__(other)
+
     def __sub__(self, other):
         other = self._check_and_update_other(other)
 
         return self._graph.subtract(self, other)
 
+    def __rsub__(self, other):
+        other = self._check_and_update_other(other)
+        return self._graph.subtract(other, self)
+
     def __mul__(self, other):
         other = self._check_and_update_other(other)
 
         return self._graph.multiply(self, other)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
 
     def __matmul__(self, other):
 
@@ -158,6 +169,11 @@ class Parameter:
         other = self._check_and_update_other(other)
 
         return self._graph.divide(self, other)
+
+    def __rtruediv__(self, other):
+        other = self._check_and_update_other(other)
+
+        return self._graph.divide(other, self)
 
     def __pow__(self, other):
         return self._graph.pow(self, other)
